@@ -32,19 +32,16 @@ loot_regions:
   elixir: [0.083, 0.190, 0.200, 0.230]
   dark:   [0.083, 0.243, 0.200, 0.283]
 
-# Eckpunkte der Spielfläche (Raute) im Angriffsbildschirm.
-map_diamond:
-  top:    [0.500, 0.000]
-  right:  [0.915, 0.470]
-  bottom: [0.500, 0.950]
-  left:   [0.085, 0.470]
+# Linien, entlang derer Truppen abgesetzt werden: [[x1, y1], [x2, y2]].
+# Sie verlaufen parallel zum oberen Kartenrand, knapp innerhalb des Spielfelds und
+# außerhalb der Gebäude. Unten liegen "Kampf beenden" und die Truppenleiste – dort keine Linien!
+# Kontrolle: python -m farmbot show-deploy --image <screenshot einer gegnerischen Basis>
+deploy_lines:
+  top_left:  [[0.115, 0.410], [0.320, 0.135]]
+  top_right: [[0.680, 0.135], [0.885, 0.410]]
 
 army:
-  # Seiten: top_left, top_right, bottom_right, bottom_left
-  # Unten liegen "Kampf beenden" und die Truppenleiste – dort nicht absetzen!
-  deploy_sides: [top_left, top_right]
-  deploy_outward: 0.10  # Punkte nach außen schieben, weg von den Gebäuden (rote Zone)
-  deploy_margin: 0.2    # Abstand zu den Ecken (0..0.5)
+  deploy_sides: [top_left, top_right]   # Namen aus deploy_lines
   tap_delay: 0.05       # Sekunden zwischen zwei Absetz-Taps
   # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
   # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.
@@ -52,13 +49,13 @@ army:
     - name: kobold
       template: slot_goblin
       pos: [0.19, 0.91]
-      count: 320
+      count: 300            # genau die Anzahl aus der Truppenleiste ("x300")
     # Beispiel Held (Fähigkeit nach 10 s):
     # - name: queen
     #   template: slot_queen
     #   pos: [0.48, 0.91]
     #   count: 1
-    #   sides: [top_left]
+    #   sides: [top_left]     # eigene Linie(n) für diesen Slot
     #   ability_after: 10
 
 battle:

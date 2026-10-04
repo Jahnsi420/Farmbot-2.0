@@ -1,7 +1,6 @@
 import pytest
 
 from farmbot.loot import Loot, LootFilter
-from farmbot.vision import parse_number
 
 
 def test_any_mode():
@@ -30,10 +29,3 @@ def test_no_minimum_accepts_everything():
 def test_invalid_mode():
     with pytest.raises(ValueError):
         LootFilter(mode="most")
-
-
-@pytest.mark.parametrize("text,expected", [
-    ("123 456\n", 123456), ("1.234.567", 1234567), ("", None), ("abc", None),
-])
-def test_parse_number(text, expected):
-    assert parse_number(text) == expected

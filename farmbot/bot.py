@@ -13,7 +13,8 @@ from farmbot.adb import Device
 from farmbot.config import Config
 from farmbot.deploy import spread
 from farmbot.loot import Loot
-from farmbot.vision import Templates, crop_rel, read_number
+from farmbot.digits import read_number
+from farmbot.vision import Templates, crop_rel
 
 log = logging.getLogger(__name__)
 
@@ -140,8 +141,7 @@ class Bot:
         abilities = []
         for slot in self.cfg.slots:
             sides = slot.sides or self.cfg.deploy_sides
-            points = spread(self.cfg.diamond, sides, slot.count, self.cfg.deploy_outward,
-                            self.cfg.deploy_margin)
+            points = spread(self.cfg.deploy_lines, sides, slot.count)
             log.info("Setze %s ab (%d×)", slot.name, len(points))
             self.select_slot(slot)
             time.sleep(0.2)

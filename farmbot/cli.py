@@ -13,7 +13,8 @@ from farmbot.adb import AdbError, Device
 from farmbot.bot import Bot, BotError
 from farmbot.config import ConfigError, load
 from farmbot.deploy import spread
-from farmbot.vision import Templates, crop_rel, preprocess_digits, read_number
+from farmbot.digits import digit_mask, read_number
+from farmbot.vision import Templates, crop_rel
 
 log = logging.getLogger("farmbot")
 
@@ -95,7 +96,7 @@ def cmd_test_loot(args) -> None:
     for res, region in cfg.loot_regions.items():
         crop = crop_rel(img, region)[0]
         imaging.imwrite(out / f"loot_{res}.png", crop)
-        imaging.imwrite(out / f"loot_{res}_ocr.png", preprocess_digits(crop))
+        imaging.imwrite(out / f"loot_{res}_mask.png", (~digit_mask(crop)).astype("uint8") * 255)
         print(f"{res:7s}: {read_number(crop)}")
     print(f"Ausschnitte gespeichert in {out}/")
 
@@ -114,7 +115,7 @@ def cmd_check(args) -> None:
 
 
 def cmd_show_deploy(args) -> None:
-    """Draw map diamond, deploy points, troop slots and loot regions onto a screenshot."""
+    """Draw deploy lines and points, troop slots and loot regions onto a screenshot."""
     from PIL import Image, ImageDraw
 
     cfg = load(args.config)
@@ -122,11 +123,11 @@ def cmd_show_deploy(args) -> None:
     draw = ImageDraw.Draw(img)
     w, h = img.size
     px = lambda p: (int(p[0] * w), int(p[1] * h))  # noqa: E731
-    d = cfg.diamond
-    corners = [px(d.top), px(d.right), px(d.bottom), px(d.left)]
-    draw.line(corners + corners[:1], fill=(255, 255, 0), width=3)
+    for name, (a, b) in cfg.deploy_lines.items():
+        draw.line([px(a), px(b)], fill=(255, 255, 0), width=3)
+        draw.text((px(a)[0] + 8, px(a)[1]), name, fill=(255, 255, 0))
     for slot in cfg.slots:
-        for p in spread(d, slot.sides or cfg.deploy_sides, slot.count, cfg.deploy_outward, cfg.deploy_margin):
+        for p in spread(cfg.deploy_lines, slot.sides or cfg.deploy_sides, slot.count):
             x, y = px(p)
             draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 0, 0))
         x, y = px(slot.pos)

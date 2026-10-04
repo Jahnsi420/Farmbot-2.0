@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from farmbot import imaging
-from farmbot.vision import Templates, crop_rel, preprocess_digits
+from farmbot.vision import Templates, crop_rel
 
 
 @pytest.fixture(params=["opencv", "numpy"])
@@ -41,16 +41,6 @@ def test_numpy_ncc_matches_opencv():
     templ = image[20:35, 30:50].copy()
     expected = cv2.matchTemplate(image, templ, cv2.TM_CCOEFF_NORMED)
     assert np.allclose(imaging._ncc_numpy(image, templ), expected, atol=1e-4)
-
-
-def test_preprocess_digits_keeps_bright_pixels():
-    img = np.zeros((10, 20, 3), np.uint8)
-    img[2:8, 5:10] = 255
-    img[2:8, 18:19] = 255  # speck far to the right, removed by trimming / filtering
-    out = preprocess_digits(img)
-    assert out.shape == (30 + 40, 60 + 40)
-    assert out[20 + 15, 20 + 20] == 0 and out[0, 0] == 255
-    assert (out[:, 20 + 50:] == 255).all()
 
 
 def test_png_roundtrip(tmp_path):

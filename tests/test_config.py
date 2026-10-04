@@ -12,7 +12,8 @@ def test_example_config_loads():
     cfg = load(EXAMPLE)
     assert cfg.slots[0].name == "kobold"
     assert cfg.slots[0].template == "slot_goblin"
-    assert cfg.deploy_margin == 0.2
+    assert cfg.deploy_sides == ["top_left", "top_right"]
+    assert cfg.deploy_lines["top_left"] == ((0.115, 0.410), (0.320, 0.135))
     assert set(cfg.loot_regions) == {"gold", "elixir", "dark"}
     assert Path(cfg.templates_dir) == EXAMPLE.parent / "templates"
 
@@ -28,9 +29,16 @@ def test_rejects_absolute_pixel_coordinates():
         parse(data)
 
 
-def test_rejects_unknown_side():
+def test_rejects_unknown_deploy_line():
     data = _example()
     data["army"]["deploy_sides"] = ["left"]
+    with pytest.raises(ConfigError, match="Absetzlinie"):
+        parse(data)
+
+
+def test_requires_deploy_lines():
+    data = _example()
+    data["deploy_lines"] = {}
     with pytest.raises(ConfigError):
         parse(data)
 

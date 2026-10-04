@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from farmbot.deploy import SIDES, Diamond
+from farmbot.deploy import Line
 from farmbot.loot import LootFilter
 from farmbot.vision import Rect
 
@@ -22,7 +22,7 @@ class TroopSlot:
     name: str
     pos: tuple[float, float]  # relative position of the slot in the troop bar
     count: int = 1            # taps to deploy (1 for heroes / clan castle)
-    sides: list[str] | None = None  # overrides army.deploy_sides
+    sides: list[str] | None = None  # deploy lines, overrides army.deploy_sides
     ability_after: float | None = None  # heroes: tap slot again after N seconds
     template: str | None = None  # find the slot in the troop bar by image instead of pos
 
@@ -43,11 +43,9 @@ class Config:
     attack_on_unreadable: bool = False
 
     slots: list[TroopSlot] = field(default_factory=list)
-    deploy_sides: list[str] = field(default_factory=lambda: list(SIDES))
-    deploy_outward: float = 0.03
-    deploy_margin: float = 0.1
+    deploy_lines: dict[str, Line] = field(default_factory=dict)
+    deploy_sides: list[str] = field(default_factory=list)
     tap_delay: float = 0.08
-    diamond: Diamond = field(default_factory=lambda: Diamond((0.5, 0.1), (0.9, 0.5), (0.5, 0.9), (0.1, 0.5)))
 
     battle_max_duration: float = 180
     surrender_after: float | None = None
@@ -80,11 +78,13 @@ def _rel_rect(value: Any, where: str) -> Rect:
     return x1, y1, x2, y2
 
 
-def _sides(value: Any, where: str) -> list[str]:
+def _sides(value: Any, lines: dict[str, Line], where: str) -> list[str]:
     sides = list(value)
+    if not sides:
+        raise ConfigError(f"{where}: mindestens eine Absetzlinie angeben")
     for s in sides:
-        if s not in SIDES:
-            raise ConfigError(f"{where}: unbekannte Seite '{s}', erlaubt: {', '.join(SIDES)}")
+        if s not in lines:
+            raise ConfigError(f"{where}: unbekannte Absetzlinie '{s}', vorhanden: {', '.join(lines) or '-'}")
     return sides
 
 
@@ -119,12 +119,17 @@ def parse(data: dict[str, Any]) -> Config:
         for name, rect in (data.get("loot_regions") or {}).items()
     }
 
+    for name, line in (data.get("deploy_lines") or {}).items():
+        if not (isinstance(line, (list, tuple)) and len(line) == 2):
+            raise ConfigError(f"deploy_lines.{name}: erwartet [[x1, y1], [x2, y2]]")
+        where = f"deploy_lines.{name}"
+        cfg.deploy_lines[name] = (_rel_point(line[0], where), _rel_point(line[1], where))
+    if not cfg.deploy_lines:
+        raise ConfigError("deploy_lines ist leer – mindestens eine Absetzlinie wird benötigt.")
+
     army = data.get("army") or {}
-    cfg.deploy_sides = _sides(army.get("deploy_sides", SIDES), "army.deploy_sides")
-    cfg.deploy_outward = float(army.get("deploy_outward", cfg.deploy_outward))
-    cfg.deploy_margin = float(army.get("deploy_margin", cfg.deploy_margin))
-    if not 0 <= cfg.deploy_margin < 0.5:
-        raise ConfigError("army.deploy_margin muss zwischen 0 und 0.5 liegen")
+    cfg.deploy_sides = _sides(army.get("deploy_sides", list(cfg.deploy_lines)), cfg.deploy_lines,
+                              "army.deploy_sides")
     cfg.tap_delay = float(army.get("tap_delay", cfg.tap_delay))
     for i, slot in enumerate(army.get("slots") or []):
         where = f"army.slots[{i}]"
@@ -132,16 +137,13 @@ def parse(data: dict[str, Any]) -> Config:
             name=str(slot.get("name", f"slot{i}")),
             pos=_rel_point(slot.get("pos"), f"{where}.pos"),
             count=int(slot.get("count", 1)),
-            sides=_sides(slot["sides"], f"{where}.sides") if "sides" in slot else None,
+            sides=_sides(slot["sides"], cfg.deploy_lines, f"{where}.sides") if "sides" in slot else None,
             ability_after=float(slot["ability_after"]) if slot.get("ability_after") is not None else None,
             template=slot.get("template"),
         ))
     if not cfg.slots:
         raise ConfigError("army.slots ist leer – mindestens ein Truppen-Slot wird benötigt.")
 
-    d = data.get("map_diamond") or {}
-    if d:
-        cfg.diamond = Diamond(*(_rel_point(d.get(k), f"map_diamond.{k}") for k in ("top", "right", "bottom", "left")))
 
     battle = data.get("battle") or {}
     cfg.battle_max_duration = float(battle.get("max_duration", cfg.battle_max_duration))

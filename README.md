@@ -2,7 +2,8 @@
 
 Ein Kommandozeilen-Bot, der in **Clash of Clans** automatisch farmt: Armee trainieren, Gegner suchen,
 Beute prüfen, Truppen rundherum absetzen, nach Hause zurückkehren und das Ganze wiederholen.
-Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich (NumPy, optional OpenCV) und liest die Beute per OCR (Tesseract).
+Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich (NumPy, optional OpenCV) und liest die Beute mit einer eigenen
+Ziffernerkennung, die auf die Schrift des Spiels angelernt ist.
 
 > ⚠️ **Achtung:** Bots verstoßen gegen die Nutzungsbedingungen von Supercell. Accounts können
 > dafür dauerhaft gesperrt werden. Nutzung auf eigenes Risiko, am besten mit einem Zweit-Account.
@@ -11,12 +12,9 @@ Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich 
 
 1. **Python 3.10+** auf deinem PC.
 2. **ADB** (Android Platform Tools): https://developer.android.com/tools/releases/platform-tools
-3. **Tesseract OCR**:
-   Windows: Installer von https://github.com/UB-Mannheim/tesseract/wiki (danach den Ordner in den PATH aufnehmen).
-   Linux: `sudo apt install tesseract-ocr`. macOS: `brew install tesseract`.
-4. Auf dem Handy: **Entwickleroptionen → USB-Debugging** aktivieren. Bei Xiaomi zusätzlich
+3. Auf dem Handy: **Entwickleroptionen → USB-Debugging** aktivieren. Bei Xiaomi zusätzlich
    „USB-Debugging (Sicherheitseinstellungen)“ aktivieren, sonst funktionieren keine Taps.
-5. Handy per USB anschließen und die Debugging-Anfrage bestätigen.
+4. Handy per USB anschließen und die Debugging-Anfrage bestätigen.
 
 ```bash
 pip install -r requirements.txt
@@ -31,9 +29,9 @@ Der Bot kann auch ohne PC laufen. Er steuert das Handy dann über **Wireless Deb
 
 ```bash
 pkg update && pkg upgrade
-pkg install git python android-tools tesseract python-numpy python-pillow
-pip install pyyaml pytesseract          # NICHT requirements.txt – numpy/pillow kommen aus pkg
-python -c "import numpy, PIL, yaml, pytesseract; print('ok')"   # Test
+pkg install git python android-tools python-numpy python-pillow
+pip install pyyaml                      # NICHT requirements.txt – numpy/pillow kommen aus pkg
+python -c "import numpy, PIL, yaml; print('ok')"   # Test
 git clone -b claude/clash-of-clans-attack-bot-yqdo1p https://github.com/Jahnsi420/Farmbot-2.0.git
 cd Farmbot-2.0                          # alle farmbot-Befehle in diesem Ordner ausführen
 ```
@@ -83,9 +81,9 @@ Welche Templates es gibt, steht in [`templates/README.md`](templates/README.md).
 python -m farmbot show-deploy      # schreibt debug/calibration.png
 ```
 
-Im Bild siehst du die Spielfeld-Raute (gelb), die Absetzpunkte (rot), die Truppen-Slots (lila) und die
-Beute-Bereiche (grün). Passe `map_diamond`, `army.slots[].pos` und `loot_regions` in `config.yaml` an,
-bis alles passt. Alle Werte sind relativ (0..1), funktionieren also unabhängig von der Auflösung.
+Im Bild siehst du die Absetzlinien (gelb), die Absetzpunkte (rot), die Truppen-Slots (lila) und die
+Beute-Bereiche (grün). Passe `deploy_lines`, `army.slots` und `loot_regions` in `config.yaml` an,
+bis alles passt. Die Absetzpunkte müssen auf freiem Gras liegen, außerhalb der roten Zone um die Gebäude. Alle Werte sind relativ (0..1), funktionieren also unabhängig von der Auflösung.
 
 **4. Beute-Erkennung testen** (auf einer gegnerischen Basis):
 
@@ -94,6 +92,8 @@ python -m farmbot test-loot
 ```
 
 Werden falsche Zahlen erkannt, prüfe die Ausschnitte in `debug/loot_*.png` und verschiebe die Bereiche.
+Die Ziffern-Vorlagen liegen in `farmbot/digit_templates/` und wurden mit `farmbot.digits.learn()` aus
+echten Screenshots angelernt.
 
 ## Starten
 
@@ -112,7 +112,7 @@ in Folge bricht er ab.
 3. Angriff → Gegner suchen.
 4. Beute lesen. Erfüllt sie `search` nicht, wird „Weiter“ getippt (das kostet Gold!).
    Nach `max_skips` Versuchen wird trotzdem angegriffen.
-5. Jeder Slot wird ausgewählt und seine `count` Truppen gleichmäßig auf den `deploy_sides` abgesetzt.
+5. Jeder Slot wird ausgewählt und seine `count` Truppen gleichmäßig auf den Linien aus `deploy_sides` abgesetzt.
    Helden-Fähigkeiten werden nach `ability_after` Sekunden aktiviert.
 6. Warten auf das Kampfende (oder Aufgeben nach `surrender_after`), dann „Nach Hause“.
 
@@ -129,8 +129,9 @@ Die Tests laufen ohne Handy (`tests/test_bot.py` simuliert ein Gerät).
 |---------------------|----------------------------------------------|
 | `farmbot/adb.py`    | Screenshots, Taps und App-Neustart über ADB  |
 | `farmbot/imaging.py`| Bilder laden/speichern, Template-Matching    |
-| `farmbot/vision.py` | Button-Erkennung und OCR der Beute           |
-| `farmbot/deploy.py` | Absetzpunkte entlang der Kartenraute         |
+| `farmbot/vision.py` | Button-Erkennung                             |
+| `farmbot/digits.py` | Ziffernerkennung für die Beute               |
+| `farmbot/deploy.py` | Absetzpunkte entlang der Absetzlinien        |
 | `farmbot/loot.py`   | Beutefilter (any / all / sum)                |
 | `farmbot/bot.py`    | Ablaufsteuerung                              |
 | `farmbot/cli.py`    | Kommandozeilenbefehle                        |

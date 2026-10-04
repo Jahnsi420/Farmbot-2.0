@@ -1,70 +1,29 @@
-"""Geometry for troop deployment along the edge of the (diamond shaped) map."""
+"""Where to deploy troops: evenly spaced points along configured lines."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 Point = tuple[float, float]
-
-SIDES = ("top_left", "top_right", "bottom_right", "bottom_left")
-
-
-@dataclass
-class Diamond:
-    """Corners of the playable area in relative screen coordinates."""
-
-    top: Point
-    right: Point
-    bottom: Point
-    left: Point
-
-    @property
-    def center(self) -> Point:
-        xs = (self.top[0], self.right[0], self.bottom[0], self.left[0])
-        ys = (self.top[1], self.right[1], self.bottom[1], self.left[1])
-        return sum(xs) / 4, sum(ys) / 4
-
-    def edge(self, side: str) -> tuple[Point, Point]:
-        return {
-            "top_left": (self.left, self.top),
-            "top_right": (self.top, self.right),
-            "bottom_right": (self.right, self.bottom),
-            "bottom_left": (self.bottom, self.left),
-        }[side]
+Line = tuple[Point, Point]
 
 
-def _lerp(a: Point, b: Point, t: float) -> Point:
-    return a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+def line_points(line: Line, n: int) -> list[Point]:
+    """`n` evenly spaced points on a line, keeping half a step away from both ends."""
+    (x1, y1), (x2, y2) = line
+    return [
+        (x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)
+        for t in ((i + 0.5) / n for i in range(max(n, 0)))
+    ]
 
 
-def edge_points(diamond: Diamond, side: str, n: int, outward: float = 0.0,
-                margin: float = 0.1) -> list[Point]:
-    """`n` evenly spaced points on one edge, pushed `outward` away from the center.
-
-    `margin` keeps points away from the corners, which are often off-screen.
-    """
-    if n <= 0:
+def spread(lines: dict[str, Line], names: list[str], count: int) -> list[Point]:
+    """Distribute `count` deployments as evenly as possible over the named lines."""
+    if not names or count <= 0:
         return []
-    a, b = diamond.edge(side)
-    cx, cy = diamond.center
-    points = []
-    for i in range(n):
-        t = margin + (1 - 2 * margin) * ((i + 0.5) / n)
-        x, y = _lerp(a, b, t)
-        points.append((x + (x - cx) * outward, y + (y - cy) * outward))
-    return points
-
-
-def spread(diamond: Diamond, sides: list[str], count: int, outward: float = 0.0,
-           margin: float = 0.1) -> list[Point]:
-    """Distribute `count` deployments as evenly as possible over the given sides."""
-    if not sides or count <= 0:
-        return []
-    for side in sides:
-        if side not in SIDES:
-            raise ValueError(f"Unbekannte Seite '{side}', erlaubt: {', '.join(SIDES)}")
-    base, extra = divmod(count, len(sides))
+    for name in names:
+        if name not in lines:
+            raise ValueError(f"Unbekannte Absetzlinie '{name}', vorhanden: {', '.join(lines)}")
+    base, extra = divmod(count, len(names))
     points: list[Point] = []
-    for i, side in enumerate(sides):
-        points += edge_points(diamond, side, base + (1 if i < extra else 0), outward, margin)
+    for i, name in enumerate(names):
+        points += line_points(lines[name], base + (1 if i < extra else 0))
     return points
