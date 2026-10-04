@@ -7,8 +7,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-import cv2
 import numpy as np
+
+from farmbot import imaging
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class Templates:
     def get(self, name: str) -> np.ndarray:
         if name not in self._cache:
             path = self.directory / f"{name}.png"
-            img = cv2.imread(str(path), cv2.IMREAD_COLOR)
+            img = imaging.imread(path)
             if img is None:
                 raise FileNotFoundError(
                     f"Template '{name}' fehlt ({path}). Mit 'python -m farmbot capture {name}' aufnehmen."
@@ -63,8 +64,7 @@ class Templates:
         th, tw = template.shape[:2]
         if area.shape[0] < th or area.shape[1] < tw:
             return None
-        result = cv2.matchTemplate(area, template, cv2.TM_CCOEFF_NORMED)
-        _, score, _, loc = cv2.minMaxLoc(result)
+        score, loc = imaging.match_template(area, template)
         log.debug("template %s score %.3f", name, score)
         if score < (threshold if threshold is not None else self.threshold):
             return None
@@ -78,10 +78,9 @@ def parse_number(text: str) -> int | None:
 
 def preprocess_digits(img: np.ndarray) -> np.ndarray:
     """Loot numbers are white with a dark outline: keep only bright pixels."""
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
-    gray = cv2.resize(gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
-    _, mask = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
-    return cv2.bitwise_not(mask)  # black digits on white for tesseract
+    gray = imaging.scale(imaging.to_gray(img), 3)
+    # black digits on white for tesseract
+    return np.where(gray > 200, 0, 255).astype(np.uint8)
 
 
 def read_number(img: np.ndarray) -> int | None:

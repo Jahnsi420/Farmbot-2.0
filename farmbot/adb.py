@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import subprocess
 
-import cv2
 import numpy as np
+
+from farmbot import imaging
 
 log = logging.getLogger(__name__)
 
@@ -57,11 +58,12 @@ class Device:
             raise AdbError(f"Gerät {self.serial} nicht verbunden. Gefunden: {', '.join(devices)}")
 
     def screenshot(self) -> np.ndarray:
-        """Return the current screen as a BGR image."""
+        """Return the current screen as an RGB image."""
         data = self._run("exec-out", "screencap", "-p")
-        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-        if img is None:
-            raise AdbError("Screenshot konnte nicht dekodiert werden.")
+        try:
+            img = imaging.decode(data)
+        except OSError as e:
+            raise AdbError("Screenshot konnte nicht dekodiert werden.") from e
         self._size = (img.shape[1], img.shape[0])
         return img
 

@@ -8,8 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-import cv2
-
+from farmbot import imaging
 from farmbot.adb import AdbError, Device
 from farmbot.bot import Bot, BotError
 from farmbot.config import ConfigError, load
@@ -31,7 +30,7 @@ def _device(args) -> Device:
 def _screen(args):
     _wait(args)
     if getattr(args, "image", None):
-        img = cv2.imread(args.image)
+        img = imaging.imread(args.image)
         if img is None:
             raise SystemExit(f"Bild {args.image} konnte nicht gelesen werden.")
         return img
@@ -53,7 +52,7 @@ def cmd_devices(args) -> None:
 def cmd_screenshot(args) -> None:
     _wait(args)
     img = _device(args).screenshot()
-    cv2.imwrite(args.output, img)
+    imaging.imwrite(args.output, img)
     print(f"Gespeichert: {args.output} ({img.shape[1]}x{img.shape[0]})")
 
 
@@ -64,10 +63,13 @@ def cmd_capture(args) -> None:
     else:
         print("Bereich mit der Maus markieren, dann ENTER/LEERTASTE drücken (C = abbrechen).")
         try:
-            x, y, w, h = cv2.selectROI("Template auswählen", img, showCrosshair=True)
+            import cv2
+
+            # OpenCV works in BGR, our images are RGB
+            x, y, w, h = cv2.selectROI("Template auswählen", img[:, :, ::-1], showCrosshair=True)
             cv2.destroyAllWindows()
-        except cv2.error:
-            cv2.imwrite("screenshot.png", img)
+        except Exception:  # no OpenCV or no GUI (e.g. Termux)
+            imaging.imwrite("screenshot.png", img)
             raise SystemExit(
                 "Keine grafische Oberfläche (z. B. Termux) – Maus-Auswahl nicht möglich.\n"
                 f"Screenshot gespeichert: screenshot.png ({img.shape[1]}x{img.shape[0]}).\n"
@@ -81,7 +83,7 @@ def cmd_capture(args) -> None:
     templates_dir = load(args.config).templates_dir if Path(args.config).exists() else "templates"
     out = Path(templates_dir) / f"{args.name}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(out), img[y1:y2, x1:x2])
+    imaging.imwrite(out, img[y1:y2, x1:x2])
     print(f"Template gespeichert: {out} ({x2 - x1}x{y2 - y1})")
 
 
@@ -92,8 +94,8 @@ def cmd_test_loot(args) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for res, region in cfg.loot_regions.items():
         crop = crop_rel(img, region)[0]
-        cv2.imwrite(str(out / f"loot_{res}.png"), crop)
-        cv2.imwrite(str(out / f"loot_{res}_ocr.png"), preprocess_digits(crop))
+        imaging.imwrite(out / f"loot_{res}.png", crop)
+        imaging.imwrite(out / f"loot_{res}_ocr.png", preprocess_digits(crop))
         print(f"{res:7s}: {read_number(crop)}")
     print(f"Ausschnitte gespeichert in {out}/")
 
@@ -111,26 +113,28 @@ def cmd_check(args) -> None:
 
 def cmd_show_deploy(args) -> None:
     """Draw map diamond, deploy points, troop slots and loot regions onto a screenshot."""
+    from PIL import Image, ImageDraw
+
     cfg = load(args.config)
-    img = _screen(args)
-    h, w = img.shape[:2]
+    img = Image.fromarray(_screen(args))
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
     px = lambda p: (int(p[0] * w), int(p[1] * h))  # noqa: E731
     d = cfg.diamond
     corners = [px(d.top), px(d.right), px(d.bottom), px(d.left)]
-    for a, b in zip(corners, corners[1:] + corners[:1]):
-        cv2.line(img, a, b, (0, 255, 255), 2)
+    draw.line(corners + corners[:1], fill=(255, 255, 0), width=3)
     for slot in cfg.slots:
         for p in spread(d, slot.sides or cfg.deploy_sides, slot.count, cfg.deploy_outward):
-            cv2.circle(img, px(p), 5, (0, 0, 255), -1)
-        cv2.circle(img, px(slot.pos), 14, (255, 0, 255), 3)
-        cv2.putText(img, slot.name, (px(slot.pos)[0] - 30, px(slot.pos)[1] - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+            x, y = px(p)
+            draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 0, 0))
+        x, y = px(slot.pos)
+        draw.ellipse((x - 14, y - 14, x + 14, y + 14), outline=(255, 0, 255), width=3)
+        draw.text((x - 30, y - 34), slot.name, fill=(255, 0, 255))
     for res, (x1, y1, x2, y2) in cfg.loot_regions.items():
-        cv2.rectangle(img, px((x1, y1)), px((x2, y2)), (0, 255, 0), 2)
-        cv2.putText(img, res, (px((x2, y1))[0] + 5, px((x2, y2))[1]),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        draw.rectangle((*px((x1, y1)), *px((x2, y2))), outline=(0, 255, 0), width=2)
+        draw.text((px((x2, y1))[0] + 5, px((x2, y1))[1]), res, fill=(0, 255, 0))
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(args.output, img)
+    img.save(args.output)
     print(f"Kalibrierungsbild gespeichert: {args.output}")
 
 

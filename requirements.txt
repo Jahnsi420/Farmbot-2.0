@@ -1,4 +1,6 @@
 numpy>=1.24
-opencv-python>=4.8
+Pillow>=9.0
 PyYAML>=6.0
 pytesseract>=0.3.10
+# Optional, macht die Bilderkennung schneller und erlaubt die Maus-Auswahl bei "capture":
+# opencv-python>=4.8

@@ -2,7 +2,7 @@
 
 Ein Kommandozeilen-Bot, der in **Clash of Clans** automatisch farmt: Armee trainieren, Gegner suchen,
 Beute prüfen, Truppen rundherum absetzen, nach Hause zurückkehren und das Ganze wiederholen.
-Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich (OpenCV) und liest die Beute per OCR (Tesseract).
+Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich (NumPy, optional OpenCV) und liest die Beute per OCR (Tesseract).
 
 > ⚠️ **Achtung:** Bots verstoßen gegen die Nutzungsbedingungen von Supercell. Accounts können
 > dafür dauerhaft gesperrt werden. Nutzung auf eigenes Risiko, am besten mit einem Zweit-Account.
@@ -20,6 +20,7 @@ Das Handy wird per **ADB** gesteuert. Der Bot erkennt Buttons per Bildvergleich 
 
 ```bash
 pip install -r requirements.txt
+pip install opencv-python      # optional: schneller und Maus-Auswahl bei "capture"
 python -m farmbot devices      # sollte dein Handy anzeigen
 ```
 
@@ -29,11 +30,10 @@ Der Bot kann auch ohne PC laufen. Er steuert das Handy dann über **Wireless Deb
 (ab Android 11) per ADB über `localhost`.
 
 ```bash
-pkg update
-pkg install x11-repo                    # OpenCV liegt im X11-Repository
-pkg install git python android-tools tesseract python-numpy python-pillow opencv-python
-pip install pyyaml pytesseract          # NICHT requirements.txt – opencv kommt aus pkg
-python -c "import cv2; print(cv2.__version__)"   # Test
+pkg update && pkg upgrade
+pkg install git python android-tools tesseract python-numpy python-pillow
+pip install pyyaml pytesseract          # NICHT requirements.txt – numpy/pillow kommen aus pkg
+python -c "import numpy, PIL, yaml, pytesseract; print('ok')"   # Test
 git clone -b claude/clash-of-clans-attack-bot-yqdo1p https://github.com/Jahnsi420/Farmbot-2.0.git
 cd Farmbot-2.0                          # alle farmbot-Befehle in diesem Ordner ausführen
 ```
@@ -47,6 +47,8 @@ ADB mit dem eigenen Handy verbinden:
 
 Besonderheiten:
 
+- **OpenCV wird nicht gebraucht.** Unter Termux ist es schwer zu installieren. Ohne OpenCV ist die
+  Bilderkennung etwas langsamer, reicht für den Bot aber aus.
 - **Wartezeit vor dem Screenshot:** Sonst fotografiert der Bot Termux statt des Spiels. Mit
   `--delay 5` bleiben dir 5 Sekunden zum Wechseln ins Spiel, z. B. `python -m farmbot screenshot -d 5`.
 - **Keine Maus-Auswahl:** Templates werden mit Pixel-Koordinaten ausgeschnitten:
@@ -126,7 +128,8 @@ Die Tests laufen ohne Handy (`tests/test_bot.py` simuliert ein Gerät).
 | Datei               | Inhalt                                       |
 |---------------------|----------------------------------------------|
 | `farmbot/adb.py`    | Screenshots, Taps und App-Neustart über ADB  |
-| `farmbot/vision.py` | Template-Matching und OCR der Beute          |
+| `farmbot/imaging.py`| Bilder laden/speichern, Template-Matching    |
+| `farmbot/vision.py` | Button-Erkennung und OCR der Beute           |
 | `farmbot/deploy.py` | Absetzpunkte entlang der Kartenraute         |
 | `farmbot/loot.py`   | Beutefilter (any / all / sum)                |
 | `farmbot/bot.py`    | Ablaufsteuerung                              |

@@ -6,9 +6,9 @@ import logging
 import time
 from pathlib import Path
 
-import cv2
 import numpy as np
 
+from farmbot import imaging
 from farmbot.adb import Device
 from farmbot.config import Config
 from farmbot.deploy import spread
@@ -77,7 +77,7 @@ class Bot:
             return
         self.debug_dir.mkdir(parents=True, exist_ok=True)
         path = self.debug_dir / f"{time.strftime('%Y%m%d-%H%M%S')}_{label}.png"
-        cv2.imwrite(str(path), screen)
+        imaging.imwrite(path, screen)
         log.info("Debug-Screenshot gespeichert: %s", path)
 
     # --- steps -------------------------------------------------------------
