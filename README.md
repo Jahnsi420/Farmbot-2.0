@@ -72,7 +72,13 @@ Widgets). Es zeigt zwei Einträge:
   öffnet Clash of Clans und startet 20 Angriffe. Das Termux-Fenster mit dem Log bleibt offen.
 - **Farmbot stoppen** beendet den Bot im Hintergrund.
 
-Voraussetzung: „Debugging über WLAN“ ist eingeschaltet und das Handy war einmal gekoppelt.
+Ohne Widget geht es genauso mit einem Kurzbefehl in Termux:
+`echo 'alias farm="bash ~/farmbot/Farmbot-2.0/termux/farmbot-start.sh"' >> ~/.bashrc`, danach `farm` (oder `farm 50`).
+
+Beim ersten Start nach einem Neustart des Handys braucht das Skript „Debugging über WLAN“ (ist es aus,
+öffnet es die Entwickleroptionen und wartet). Danach stellt es ADB auf den festen Port `localhost:5555` um:
+bis zum nächsten Neustart klappt der Start dann ohne „Debugging über WLAN“ und sogar ohne WLAN.
+Android erlaubt Apps nicht, Debugging selbst einzuschalten – ein Tipp bleibt also nach jedem Neustart.
 Falls sich nichts öffnet: In den Android-Einstellungen bei Termux „Über anderen Apps einblenden“ erlauben.
 
 ## Einrichtung (einmalig)
