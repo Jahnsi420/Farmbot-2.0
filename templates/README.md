@@ -15,8 +15,8 @@ python -m farmbot capture <name>
 | `next_button`       | Gegnerische Basis: „Weiter“ unten rechts                          | ja      |
 | `slot_goblin`       | Truppenleiste im Kampf: nur das Kobold-Bild, ohne „x320“ und Level | empfohlen |
 | `return_home`       | Kampfende: „Nach Hause“                                           | ja      |
-| `end_battle`        | Während des Kampfes: „Kampf beenden“                              | nur für `surrender_after` |
-| `surrender_confirm` | Bestätigungsdialog „Okay“ beim Aufgeben                           | nur für `surrender_after` |
+| `end_battle`        | Im Kampf: „Aufgeben“ unten links                                  | fürs Aufgeben |
+| `surrender_confirm` | Abfrage „Aufgeben?“: der grüne „Okay“-Button                      | fürs Aufgeben |
 | eigene Namen        | alle Buttons aus `training.sequence` (z. B. `army_button`, `train_again`, `close_window`) | wenn Training aktiv |
 
 Tipps:
