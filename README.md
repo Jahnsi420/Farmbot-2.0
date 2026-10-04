@@ -30,8 +30,10 @@ Der Bot kann auch ohne PC laufen. Er steuert das Handy dann über **Wireless Deb
 
 ```bash
 pkg update
-pkg install git python android-tools tesseract opencv-python python-numpy python-pillow
+pkg install x11-repo                    # OpenCV liegt im X11-Repository
+pkg install git python android-tools tesseract python-numpy python-pillow opencv-python
 pip install pyyaml pytesseract          # NICHT requirements.txt – opencv kommt aus pkg
+python -c "import cv2; print(cv2.__version__)"   # Test
 git clone -b claude/clash-of-clans-attack-bot-yqdo1p https://github.com/Jahnsi420/Farmbot-2.0.git
 cd Farmbot-2.0                          # alle farmbot-Befehle in diesem Ordner ausführen
 ```
