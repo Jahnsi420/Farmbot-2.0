@@ -104,7 +104,9 @@ def cmd_check(args) -> None:
     """Show which templates are visible on the current screen."""
     cfg = load(args.config)
     img = _screen(args)
-    templates = Templates(cfg.templates_dir, cfg.threshold)
+    templates = Templates(cfg.templates_dir, cfg.threshold, cfg.reference_width)
+    print(f"Bildgröße: {img.shape[1]}x{img.shape[0]}"
+          + (f" (Templates für Breite {cfg.reference_width})" if cfg.reference_width else ""))
     for path in sorted(Path(cfg.templates_dir).glob("*.png")):
         match = templates.find(img, path.stem, threshold=0.0)
         hit = match and match.score >= cfg.threshold

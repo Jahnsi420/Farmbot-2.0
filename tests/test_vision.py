@@ -59,3 +59,16 @@ def test_png_roundtrip(tmp_path):
     assert np.array_equal(imaging.imread(tmp_path / "x.png"), img)
     data = (tmp_path / "x.png").read_bytes()
     assert np.array_equal(imaging.decode(data), img)
+
+
+def test_templates_rescale_for_other_resolution(tmp_path, backend):
+    rng = np.random.default_rng(2)
+    small = rng.integers(0, 255, (40, 60, 3), dtype=np.uint8)
+    screen = imaging.scale(small, 10)  # smooth 600x400 "screen"
+    imaging.imwrite(tmp_path / "btn.png", screen[300:360, 100:220])
+
+    lower_res = imaging.scale(screen, 0.8)  # same screen at 480x320
+    t = Templates(tmp_path, threshold=0.8, reference_width=600)
+    m = t.find(lower_res, "btn")
+    assert m is not None and abs(m.x - 80) <= 2 and abs(m.y - 240) <= 2
+    assert Templates(tmp_path, threshold=0.8).find(lower_res, "btn") is None

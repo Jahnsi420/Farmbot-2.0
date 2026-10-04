@@ -35,6 +35,7 @@ class Config:
 
     templates_dir: str = "templates"
     threshold: float = 0.85
+    reference_width: int | None = None
 
     loot_filter: LootFilter = field(default_factory=LootFilter)
     loot_regions: dict[str, Rect] = field(default_factory=dict)
@@ -97,6 +98,8 @@ def parse(data: dict[str, Any]) -> Config:
     templates = data.get("templates") or {}
     cfg.templates_dir = templates.get("dir", cfg.templates_dir)
     cfg.threshold = float(templates.get("threshold", cfg.threshold))
+    if templates.get("reference_width"):
+        cfg.reference_width = int(templates["reference_width"])
 
     search = data.get("search") or {}
     try:

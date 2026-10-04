@@ -36,7 +36,7 @@ class Bot:
     def __init__(self, config: Config, device: Device, debug_dir: Path | None = None):
         self.cfg = config
         self.device = device
-        self.templates = Templates(config.templates_dir, config.threshold)
+        self.templates = Templates(config.templates_dir, config.threshold, config.reference_width)
         self.timeouts = {**DEFAULT_TIMEOUTS, **config.timeouts}
         self.debug_dir = debug_dir
         self.attacks = 0

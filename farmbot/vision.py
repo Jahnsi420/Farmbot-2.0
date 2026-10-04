@@ -38,10 +38,14 @@ def crop_rel(img: np.ndarray, rect: Rect) -> tuple[np.ndarray, int, int]:
 
 
 class Templates:
-    def __init__(self, directory: str | Path, threshold: float = 0.85):
+    def __init__(self, directory: str | Path, threshold: float = 0.85,
+                 reference_width: int | None = None):
         self.directory = Path(directory)
         self.threshold = threshold
+        # Screen width the templates were cut from; other resolutions get rescaled templates.
+        self.reference_width = reference_width
         self._cache: dict[str, np.ndarray] = {}
+        self._scaled: dict[tuple[str, int], np.ndarray] = {}
 
     def has(self, name: str) -> bool:
         return (self.directory / f"{name}.png").exists()
@@ -57,9 +61,18 @@ class Templates:
             self._cache[name] = img
         return self._cache[name]
 
+    def for_screen(self, name: str, screen_width: int) -> np.ndarray:
+        template = self.get(name)
+        if not self.reference_width or screen_width == self.reference_width:
+            return template
+        key = (name, screen_width)
+        if key not in self._scaled:
+            self._scaled[key] = imaging.scale(template, screen_width / self.reference_width)
+        return self._scaled[key]
+
     def find(self, screen: np.ndarray, name: str, region: Rect | None = None,
              threshold: float | None = None) -> Match | None:
-        template = self.get(name)
+        template = self.for_screen(name, screen.shape[1])
         area, ox, oy = crop_rel(screen, region) if region else (screen, 0, 0)
         th, tw = template.shape[:2]
         if area.shape[0] < th or area.shape[1] < tw:
