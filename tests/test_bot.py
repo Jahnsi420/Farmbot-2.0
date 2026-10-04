@@ -142,12 +142,14 @@ def test_surrenders_once_loot_stops_dropping(battle, monkeypatch):
     assert surrendered == [pytest.approx(21.0)]
 
 
-def test_no_idle_surrender_before_loot_starts_dropping(battle, monkeypatch):
+def test_surrenders_when_troops_died_before_loot_was_read(battle, monkeypatch):
     bot, clock, surrendered = battle
-    bot.cfg.surrender_after = 60
-    monkeypatch.setattr(bot, "read_loot", lambda screen: Loot(500_000, 500_000, 0))
-    bot.wait_battle_end([])
-    assert surrendered == [pytest.approx(60.0)]
+    bot.cfg.surrender_min_time = 30
+    clock[0] = 25.0  # deploying and redeploying took 25s, the goblins already looted and died
+    monkeypatch.setattr(bot, "read_loot", lambda screen: Loot(300_000, 300_000, 0))
+    bot.wait_battle_end([], start=0.0)
+    # first reading at 25s, the 15s window is complete at 40s (min time 30s already passed)
+    assert surrendered == [pytest.approx(40.0)]
 
 
 def test_surrenders_when_loot_only_trickles(battle, monkeypatch):
@@ -188,7 +190,7 @@ def test_deploy_points_split_count_over_parallel_streams(bot):
 
 def test_no_stall_surrender_before_min_time(battle, monkeypatch):
     bot, clock, surrendered = battle
-    bot.cfg.surrender_min_time = 45
+    bot.cfg.surrender_min_time = 45  # longer than the 15s window, so the minimum decides
     # a few edge collectors are looted right away, then nothing until the goblins reach storages
     readings = iter([Loot(950_000, 950_000, 0), Loot(945_000, 950_000, 0)] + [Loot(945_000, 950_000, 0)] * 200)
     monkeypatch.setattr(bot, "read_loot", lambda screen: next(readings))

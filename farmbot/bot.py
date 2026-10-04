@@ -45,28 +45,26 @@ class LootWatch:
         self.window = window
         self.min_gain = min_gain
         self.lowest: int | None = None
-        self.first_drop: float | None = None  # the window only counts once loot started dropping
         self.history: list[tuple[float, int]] = []
 
     def update(self, now: float, loot: Loot) -> bool:
-        """Record a reading; returns True if the remaining loot went down."""
+        """Record a reading; returns True if the remaining loot is new or went down."""
         if loot.gold is None or loot.elixir is None:
             return False
         total = loot.gold + loot.elixir
-        dropped = False
+        changed = False
         # higher readings are OCR noise: loot only goes down during a battle
         if self.lowest is None or total < self.lowest:
-            if self.lowest is not None:
-                dropped = True
-                self.first_drop = self.first_drop if self.first_drop is not None else now
             self.lowest = total
+            changed = True
         self.history.append((now, self.lowest))
-        return dropped
+        return changed
 
     def stalled(self, now: float) -> bool:
-        """Less than min_gain loot taken during the last `window` seconds."""
-        if self.first_drop is None or now - self.first_drop < self.window:
-            return False
+        """Less than min_gain loot taken during the last `window` seconds.
+
+        Also true if the troops died before the first reading and nothing is dropping at all.
+        """
         before = [v for t, v in self.history if t <= now - self.window]
         return bool(before) and before[-1] - self.lowest < self.min_gain
 

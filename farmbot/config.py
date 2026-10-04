@@ -56,7 +56,7 @@ class Config:
     surrender_after: float | None = None
     surrender_when_idle: float | None = None  # window in seconds for surrender_min_loot
     surrender_min_loot: int = 1  # give up once less loot than this was taken within the window
-    surrender_min_time: float = 0  # seconds after deploy start before stalled looting may end the battle
+    surrender_min_time: float = 30  # seconds after deploy start before stalled looting may end the battle
 
     train_sequence: list[str] = field(default_factory=list)
     wait_after_train: float = 0

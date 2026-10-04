@@ -67,7 +67,7 @@ battle:
   # Aufgeben braucht die Templates end_battle und surrender_confirm.
   surrender_when_idle: 15     # aufgeben, wenn in 15 s (null = aus) ...
   surrender_min_loot: 20000   # ... weniger als 20.000 Gold+Elixier geplündert wurden,
-  surrender_min_time: 45      # frühestens aber 45 s nach Beginn des Absetzens
+  surrender_min_time: 30      # frühestens aber 30 s nach Beginn des Absetzens
   surrender_after: 120        # spätestens 120 s nach Beginn des Absetzens aufgeben (null = bis zum Ende)
 
 training:
