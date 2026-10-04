@@ -1,0 +1,81 @@
+# Farmbot 2.0 – Beispielkonfiguration
+# Kopieren nach config.yaml und an dein Handy anpassen.
+# Alle Positionen sind RELATIV zur Bildschirmgröße: x und y von 0.0 bis 1.0
+# (0,0 = oben links, 1,1 = unten rechts). Prüfen mit: python -m farmbot show-deploy
+
+device:
+  serial: null          # nur nötig, wenn mehrere Geräte verbunden sind (siehe: python -m farmbot devices)
+  adb_path: adb
+
+game:
+  package: com.supercell.clashofclans
+
+templates:
+  dir: templates        # Ordner mit den Button-Bildern (relativ zu dieser Datei)
+  threshold: 0.85       # Mindest-Übereinstimmung 0..1; bei Fehlerkennungen erhöhen
+
+search:
+  mode: any             # any = eine Ressource reicht | all = alle | sum = Gold+Elixier >= min_total
+  min_gold: 300000
+  min_elixir: 300000
+  min_dark: 0           # 0 = ignorieren
+  min_total: 600000     # nur für mode: sum
+  max_skips: 60         # danach wird die aktuelle Basis trotzdem angegriffen
+  attack_on_unreadable: false
+
+# Bereiche, in denen beim Gegner die Beute-Zahlen stehen (oben links).
+# Mit "python -m farmbot show-deploy --image <screenshot einer gegnerischen Basis>" kontrollieren.
+loot_regions:
+  gold:   [0.035, 0.125, 0.135, 0.165]
+  elixir: [0.035, 0.175, 0.135, 0.215]
+  dark:   [0.035, 0.225, 0.120, 0.265]
+
+# Eckpunkte der Spielfläche (Raute) im Angriffsbildschirm.
+map_diamond:
+  top:    [0.50, 0.08]
+  right:  [0.90, 0.47]
+  bottom: [0.50, 0.86]
+  left:   [0.10, 0.47]
+
+army:
+  # Seiten: top_left, top_right, bottom_right, bottom_left
+  deploy_sides: [top_left, top_right, bottom_right, bottom_left]
+  deploy_outward: 0.03  # Punkte etwas außerhalb der Raute, damit sie sicher im erlaubten Bereich liegen
+  tap_delay: 0.08       # Sekunden zwischen zwei Absetz-Taps
+  # Slots in der Truppenleiste unten, in der Reihenfolge des Absetzens.
+  slots:
+    - name: barbarian
+      pos: [0.13, 0.92]
+      count: 90
+    - name: archer
+      pos: [0.21, 0.92]
+      count: 90
+    - name: king
+      pos: [0.29, 0.92]
+      count: 1
+      sides: [bottom_left]
+      ability_after: 10   # Fähigkeit nach 10 s aktivieren
+    - name: queen
+      pos: [0.37, 0.92]
+      count: 1
+      sides: [bottom_right]
+      ability_after: 10
+
+battle:
+  max_duration: 180     # normale Kampfdauer (3 min)
+  surrender_after: 90   # nach 90 s aufgeben (Template end_battle nötig); null = bis zum Ende
+
+training:
+  # Templates, die nacheinander angetippt werden, um die Armee neu zu trainieren
+  # (z. B. Armee-Button → "Erneut trainieren" → Fenster schließen). Leer = nicht trainieren.
+  sequence: [army_button, train_again, close_window]
+  wait_after: 0         # Sekunden warten, bis die Armee fertig ist
+
+session:
+  max_attacks: 10       # 0 = unbegrenzt
+  pause_between_attacks: 5
+
+timeouts:
+  home: 30
+  search: 60
+  button: 10
