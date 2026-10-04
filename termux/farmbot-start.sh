@@ -5,6 +5,7 @@ ATTACKS="${1:-20}"
 BOT_DIR="${FARMBOT_DIR:-$HOME/farmbot/Farmbot-2.0}"
 PACKAGE="com.supercell.clashofclans"
 LOCAL="localhost:5555"  # fixed port that survives Wi-Fi changes until the next reboot
+LAST_IP_FILE="$HOME/.farmbot_last_ip"
 
 cd "$BOT_DIR" || { echo "Ordner $BOT_DIR nicht gefunden."; read -rp "Enter zum Schließen"; exit 1; }
 
@@ -30,20 +31,31 @@ if [ -z "$SERIAL" ]; then
     wait_device "$LOCAL" 3 && SERIAL="$LOCAL"
 fi
 
-# 2. Wi-Fi debugging; if it is off, open the developer options and wait for the user.
+# 2. Wi-Fi debugging: found via mDNS, or typed in from the settings page (mDNS doesn't work everywhere).
 if [ -z "$SERIAL" ]; then
+    LAST_IP=$(cat "$LAST_IP_FILE" 2>/dev/null)
     for attempt in 1 2 3; do
         ADDR=$(wireless_address)
-        if [ -n "$ADDR" ]; then
-            adb connect "$ADDR" >/dev/null 2>&1
-            wait_device "$ADDR" 5 && SERIAL="$ADDR" && break
+        if [ -z "$ADDR" ]; then
+            if [ "$attempt" = 1 ]; then
+                echo "Ich öffne die Entwickleroptionen → 'Debugging über WLAN' einschalten und antippen."
+                am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS >/dev/null 2>&1
+            fi
+            echo "Dort steht 'IP-Adresse und Port', z. B. 192.168.44.245:42741."
+            read -rp "IP:Port eingeben${LAST_IP:+ (oder nur den Port, IP $LAST_IP)}: " INPUT
+            case "$INPUT" in
+                "") continue ;;
+                *:*) ADDR="$INPUT" ;;
+                *) ADDR="${LAST_IP:-localhost}:$INPUT" ;;
+            esac
         fi
-        [ "$attempt" = 3 ] && break
-        echo "Debugging über WLAN ist aus. Ich öffne die Entwickleroptionen:"
-        echo "  → 'Debugging über WLAN' einschalten, dann zurück zu Termux und Enter drücken."
-        am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS >/dev/null 2>&1
-        read -rp "Enter, sobald es eingeschaltet ist … "
-        sleep 2  # give mDNS a moment to announce the port
+        adb connect "$ADDR" >/dev/null 2>&1
+        if wait_device "$ADDR" 5; then
+            SERIAL="$ADDR"
+            [ "${ADDR%%:*}" != "localhost" ] && echo "${ADDR%%:*}" > "$LAST_IP_FILE"
+            break
+        fi
+        echo "Verbindung zu $ADDR fehlgeschlagen."
     done
 fi
 
