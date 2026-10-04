@@ -11,7 +11,7 @@ import numpy as np
 from farmbot import imaging
 from farmbot.adb import Device
 from farmbot.config import Config
-from farmbot.deploy import spread
+from farmbot.deploy import spread, to_pixels
 from farmbot.loot import Loot
 from farmbot.digits import read_number
 from farmbot.vision import Templates, crop_rel
@@ -244,7 +244,7 @@ class Bot:
         if self.slot_empty(slot):
             return
         log.warning("%s: noch Truppen übrig, setze den Rest nach", slot.name)
-        spots = [self.rel_to_px(*p) for p in spread(self.cfg.deploy_lines, slot.sides or self.cfg.deploy_sides, 16)]
+        spots = self.deploy_spots(slot.sides or self.cfg.deploy_sides, 16)
         started = time.monotonic()
         holds = 0
         while time.monotonic() - started < self.cfg.leftover_timeout:
@@ -260,15 +260,19 @@ class Bot:
                 return
         log.warning("%s: Karte nach %.0fs immer noch nicht leer", slot.name, self.cfg.leftover_timeout)
 
+    def deploy_spots(self, sides: list[str], n: int) -> list[tuple[int, int]]:
+        """`n` evenly spread spots on the deploy lines, in screen pixels."""
+        lines = to_pixels(self.cfg.deploy_lines, *self.device.size, self.cfg.line_shift)
+        return [(round(x), round(y)) for x, y in spread(lines, sides, n)]
+
     def deploy_streams(self, slot) -> list[list[tuple[int, int]]]:
         """Tap sequences for a slot: one per deploy point (run in parallel), or one along the lines."""
         sides = slot.sides or self.cfg.deploy_sides
         n_points = min(self.cfg.deploy_points, slot.count)
         if n_points <= 0:
-            return [[self.rel_to_px(*p) for p in spread(self.cfg.deploy_lines, sides, slot.count)]]
-        points = spread(self.cfg.deploy_lines, sides, n_points)
+            return [self.deploy_spots(sides, slot.count)]
         base, extra = divmod(slot.count, n_points)
-        return [[self.rel_to_px(*p)] * (base + (1 if i < extra else 0)) for i, p in enumerate(points)]
+        return [[p] * (base + (1 if i < extra else 0)) for i, p in enumerate(self.deploy_spots(sides, n_points))]
 
     def select_slot(self, slot) -> None:
         """Tap a troop slot, located by its template in the troop bar if one is configured."""

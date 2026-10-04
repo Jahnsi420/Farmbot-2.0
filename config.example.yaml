@@ -37,13 +37,14 @@ loot_regions:
 # außerhalb der Gebäude. Unten liegen "Kampf beenden" und die Truppenleiste – dort keine Linien!
 # Kontrolle: python -m farmbot show-deploy --image <screenshot einer gegnerischen Basis>
 deploy_lines:
-  top_left:  [[0.123, 0.441], [0.328, 0.166]]
-  top_right: [[0.672, 0.166], [0.877, 0.441]]
+  top_left:  [[0.1165, 0.4155], [0.3215, 0.1406]]
+  top_right: [[0.6785, 0.1406], [0.8835, 0.4155]]
 
 army:
   deploy_sides: [top_left, top_right]   # Namen aus deploy_lines
   deploy_points: 4      # an so vielen Punkten gleichzeitig absetzen (0 = einzeln entlang der Linien)
-  leftover_hold: 1.0    # Übrige nachsetzen: so viele Sekunden pro Stelle gedrückt halten
+  line_shift: 0         # alle Linien so viele Pixel nach außen schieben (negativ = nach innen), 20 ≈ 1 Feld
+  leftover_hold: 4.0    # Übrige nachsetzen: so viele Sekunden pro Stelle gedrückt halten (~5 Kobolde/s)
   leftover_timeout: 60  # spätestens nach so vielen Sekunden aufhören, falls die Karte nicht grau wird
   # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
   # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.

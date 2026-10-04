@@ -13,7 +13,7 @@ def test_example_config_loads():
     assert cfg.slots[0].name == "kobold"
     assert cfg.slots[0].template == "slot_goblin"
     assert cfg.deploy_sides == ["top_left", "top_right"]
-    assert cfg.deploy_lines["top_left"] == ((0.123, 0.441), (0.328, 0.166))
+    assert cfg.deploy_lines["top_left"] == ((0.1165, 0.4155), (0.3215, 0.1406))
     assert set(cfg.loot_regions) == {"gold", "elixir", "dark"}
     assert Path(cfg.templates_dir) == EXAMPLE.parent / "templates"
 

@@ -12,7 +12,7 @@ from farmbot import imaging
 from farmbot.adb import AdbError, Device
 from farmbot.bot import Bot, BotError
 from farmbot.config import ConfigError, load
-from farmbot.deploy import spread
+from farmbot.deploy import spread, to_pixels
 from farmbot.digits import digit_mask, read_number
 from farmbot.vision import Templates, crop_rel
 
@@ -123,13 +123,14 @@ def cmd_show_deploy(args) -> None:
     draw = ImageDraw.Draw(img)
     w, h = img.size
     px = lambda p: (int(p[0] * w), int(p[1] * h))  # noqa: E731
-    for name, (a, b) in cfg.deploy_lines.items():
-        draw.line([px(a), px(b)], fill=(255, 255, 0), width=3)
-        draw.text((px(a)[0] + 8, px(a)[1]), name, fill=(255, 255, 0))
+    lines = to_pixels(cfg.deploy_lines, w, h, cfg.line_shift)
+    for name, (a, b) in lines.items():
+        draw.line([a, b], fill=(255, 255, 0), width=3)
+        draw.text((a[0] + 8, a[1]), name, fill=(255, 255, 0))
     for slot in cfg.slots:
-        for p in spread(cfg.deploy_lines, slot.sides or cfg.deploy_sides, slot.count):
-            x, y = px(p)
-            draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 0, 0))
+        n = min(cfg.deploy_points, slot.count) or slot.count
+        for x, y in spread(lines, slot.sides or cfg.deploy_sides, n):
+            draw.ellipse((x - 8, y - 8, x + 8, y + 8), fill=(255, 0, 0))
         x, y = px(slot.pos)
         draw.ellipse((x - 14, y - 14, x + 14, y + 14), outline=(255, 0, 255), width=3)
         draw.text((x - 30, y - 34), slot.name, fill=(255, 0, 255))
