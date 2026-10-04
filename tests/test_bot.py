@@ -90,3 +90,43 @@ def test_full_attack_loop(bot, monkeypatch):
     # per attack: deploy taps + slot selections + hero abilities
     deploy_taps = [t for t in bot.device.taps if t != (1, 1)]
     assert len(deploy_taps) == 2 * (troops + len(bot.cfg.slots) + abilities)
+
+
+@pytest.fixture
+def battle(bot, monkeypatch):
+    """Bot in a running battle with a fake clock; returns (bot, clock, surrender times)."""
+    clock = [0.0]
+    monkeypatch.setattr(bot_module.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(bot_module.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + s))
+    bot.templates.has = lambda name: True
+    bot.cfg.surrender_when_idle = 15
+    bot.cfg.surrender_after = None
+    bot.device.state = "battle"
+    bot.device.battle_frames = -10_000  # the battle only ends by surrendering
+    surrendered = []
+
+    def surrender(screen):
+        surrendered.append(clock[0])
+        bot.device.state = "battle_end"
+
+    monkeypatch.setattr(bot, "surrender", surrender)
+    return bot, clock, surrendered
+
+
+def test_surrenders_once_loot_stops_dropping(battle, monkeypatch):
+    bot, clock, surrendered = battle
+    # goblins walk (loot unchanged), then loot two storages, then nothing left to take
+    readings = iter([Loot(500_000, 500_000, 0)] * 3 + [Loot(400_000, 450_000, 0), Loot(300_000, 300_000, 0)]
+                    + [Loot(300_000, 300_000, 0), Loot(390_000, 300_000, 0)] * 50)
+    monkeypatch.setattr(bot, "read_loot", lambda screen: next(readings))
+    bot.wait_battle_end([])
+    # last drop at the 5th reading (t=6.0s); a higher misreading must not reset the timer
+    assert surrendered == [pytest.approx(21.0)]
+
+
+def test_no_idle_surrender_before_loot_starts_dropping(battle, monkeypatch):
+    bot, clock, surrendered = battle
+    bot.cfg.surrender_after = 60
+    monkeypatch.setattr(bot, "read_loot", lambda screen: Loot(500_000, 500_000, 0))
+    bot.wait_battle_end([])
+    assert surrendered == [pytest.approx(60.0)]

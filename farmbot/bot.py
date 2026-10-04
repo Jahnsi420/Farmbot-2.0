@@ -166,15 +166,29 @@ class Bot:
                         slot.name, slot.template)
         self.tap_rel(*slot.pos)
 
-    def surrender(self) -> None:
-        log.info("Beende Kampf vorzeitig")
-        self.tap_template("end_battle")
-        if self.templates.has("surrender_confirm"):
+    def can_surrender(self) -> bool:
+        wanted = self.cfg.surrender_after is not None or self.cfg.surrender_when_idle is not None
+        missing = [n for n in ("end_battle", "surrender_confirm") if not self.templates.has(n)]
+        if wanted and missing:
+            log.warning("Aufgeben nicht möglich, Templates fehlen: %s", ", ".join(missing))
+        return wanted and not missing
+
+    def surrender(self, screen: np.ndarray) -> None:
+        """Tap "end battle" and confirm. Does nothing if the battle already ended."""
+        match = self.templates.find(screen, "end_battle")
+        if not match:
+            return
+        self.device.tap(*match.center)
+        try:
             self.tap_template("surrender_confirm")
+        except BotError:
+            log.warning("Bestätigung zum Aufgeben nicht gefunden")
 
     def wait_battle_end(self, abilities: list[tuple[float, str, tuple[float, float]]]) -> None:
         start = time.monotonic()
-        surrendered = False
+        surrendered = not self.can_surrender()
+        lowest_loot: int | None = None
+        last_drop: float | None = None  # idle timer only runs once loot started dropping
         while True:
             now = time.monotonic()
             for item in list(abilities):
@@ -192,10 +206,26 @@ class Bot:
                 return
 
             elapsed = now - start
-            if (not surrendered and self.cfg.surrender_after is not None
-                    and elapsed >= self.cfg.surrender_after and self.templates.has("end_battle")):
-                self.surrender()
-                surrendered = True
+            if not surrendered:
+                reason = None
+                if self.cfg.surrender_when_idle is not None:
+                    loot = self.read_loot(screen)
+                    if loot.gold is not None and loot.elixir is not None:
+                        total = loot.gold + loot.elixir
+                        # higher readings are OCR noise: loot only goes down during a battle
+                        if lowest_loot is None or total < lowest_loot:
+                            if lowest_loot is not None:
+                                last_drop = now
+                            lowest_loot = total
+                    if last_drop is not None and now - last_drop >= self.cfg.surrender_when_idle:
+                        reason = f"seit {self.cfg.surrender_when_idle:.0f}s keine Beute mehr"
+                if self.cfg.surrender_after is not None and elapsed >= self.cfg.surrender_after:
+                    reason = f"nach {self.cfg.surrender_after:.0f}s"
+                if reason:
+                    log.info("Gebe auf (%s), Restbeute: %s", reason,
+                             "?" if lowest_loot is None else f"{lowest_loot:,}".replace(",", "."))
+                    self.surrender(screen)
+                    surrendered = True
             if elapsed > self.cfg.battle_max_duration + 30:
                 self.save_debug(screen, "battle_timeout")
                 raise BotError("Kampfende nicht erkannt.")

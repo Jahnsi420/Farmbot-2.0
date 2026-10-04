@@ -60,7 +60,9 @@ army:
 
 battle:
   max_duration: 180     # normale Kampfdauer (3 min)
-  surrender_after: null # z. B. 90 = nach 90 s aufgeben (Templates end_battle + surrender_confirm nötig)
+  # Aufgeben braucht die Templates end_battle und surrender_confirm.
+  surrender_when_idle: 15  # aufgeben, wenn die Beute 15 s lang nicht weiter sinkt (null = aus)
+  surrender_after: 120     # spätestens nach 120 s aufgeben (null = bis zum Ende)
 
 training:
   # Templates, die nacheinander angetippt werden, um die Armee neu zu trainieren

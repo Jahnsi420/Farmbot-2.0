@@ -49,6 +49,7 @@ class Config:
 
     battle_max_duration: float = 180
     surrender_after: float | None = None
+    surrender_when_idle: float | None = None  # give up once loot stopped dropping for N seconds
 
     train_sequence: list[str] = field(default_factory=list)
     wait_after_train: float = 0
@@ -149,6 +150,8 @@ def parse(data: dict[str, Any]) -> Config:
     cfg.battle_max_duration = float(battle.get("max_duration", cfg.battle_max_duration))
     if battle.get("surrender_after") is not None:
         cfg.surrender_after = float(battle["surrender_after"])
+    if battle.get("surrender_when_idle") is not None:
+        cfg.surrender_when_idle = float(battle["surrender_when_idle"])
 
     training = data.get("training") or {}
     cfg.train_sequence = list(training.get("sequence") or [])
