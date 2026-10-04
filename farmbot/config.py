@@ -24,6 +24,7 @@ class TroopSlot:
     count: int = 1            # taps to deploy (1 for heroes / clan castle)
     sides: list[str] | None = None  # overrides army.deploy_sides
     ability_after: float | None = None  # heroes: tap slot again after N seconds
+    template: str | None = None  # find the slot in the troop bar by image instead of pos
 
 
 @dataclass
@@ -43,6 +44,7 @@ class Config:
     slots: list[TroopSlot] = field(default_factory=list)
     deploy_sides: list[str] = field(default_factory=lambda: list(SIDES))
     deploy_outward: float = 0.03
+    deploy_margin: float = 0.1
     tap_delay: float = 0.08
     diamond: Diamond = field(default_factory=lambda: Diamond((0.5, 0.1), (0.9, 0.5), (0.5, 0.9), (0.1, 0.5)))
 
@@ -117,6 +119,9 @@ def parse(data: dict[str, Any]) -> Config:
     army = data.get("army") or {}
     cfg.deploy_sides = _sides(army.get("deploy_sides", SIDES), "army.deploy_sides")
     cfg.deploy_outward = float(army.get("deploy_outward", cfg.deploy_outward))
+    cfg.deploy_margin = float(army.get("deploy_margin", cfg.deploy_margin))
+    if not 0 <= cfg.deploy_margin < 0.5:
+        raise ConfigError("army.deploy_margin muss zwischen 0 und 0.5 liegen")
     cfg.tap_delay = float(army.get("tap_delay", cfg.tap_delay))
     for i, slot in enumerate(army.get("slots") or []):
         where = f"army.slots[{i}]"
@@ -126,6 +131,7 @@ def parse(data: dict[str, Any]) -> Config:
             count=int(slot.get("count", 1)),
             sides=_sides(slot["sides"], f"{where}.sides") if "sides" in slot else None,
             ability_after=float(slot["ability_after"]) if slot.get("ability_after") is not None else None,
+            template=slot.get("template"),
         ))
     if not cfg.slots:
         raise ConfigError("army.slots ist leer – mindestens ein Truppen-Slot wird benötigt.")

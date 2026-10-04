@@ -124,7 +124,7 @@ def cmd_show_deploy(args) -> None:
     corners = [px(d.top), px(d.right), px(d.bottom), px(d.left)]
     draw.line(corners + corners[:1], fill=(255, 255, 0), width=3)
     for slot in cfg.slots:
-        for p in spread(d, slot.sides or cfg.deploy_sides, slot.count, cfg.deploy_outward):
+        for p in spread(d, slot.sides or cfg.deploy_sides, slot.count, cfg.deploy_outward, cfg.deploy_margin):
             x, y = px(p)
             draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 0, 0))
         x, y = px(slot.pos)

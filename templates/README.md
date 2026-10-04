@@ -13,6 +13,7 @@ python -m farmbot capture <name>
 | `find_match`        | Angriffsmenü: „Gegner suchen“                                     | ja      |
 | `attack_confirm`    | Armee-Übersicht vor der Suche: zweiter „Angriff!“-Button          | nur wenn dein Spiel ihn zeigt |
 | `next_button`       | Gegnerische Basis: „Weiter“ unten rechts                          | ja      |
+| `slot_goblin`       | Truppenleiste im Kampf: nur das Kobold-Bild, ohne „x320“ und Level | empfohlen |
 | `return_home`       | Kampfende: „Nach Hause“                                           | ja      |
 | `end_battle`        | Während des Kampfes: „Kampf beenden“                              | nur für `surrender_after` |
 | `surrender_confirm` | Bestätigungsdialog „Okay“ beim Aufgeben                           | nur für `surrender_after` |

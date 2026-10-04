@@ -71,7 +71,7 @@ def bot(monkeypatch):
 
 
 def test_full_attack_loop(bot, monkeypatch):
-    bases = iter([Loot(10_000, 10_000, 0), Loot(500_000, 50_000, 0)] * 2)
+    bases = iter([Loot(10_000, 10_000, 0), Loot(600_000, 550_000, 0)] * 2)
     monkeypatch.setattr(bot, "read_loot", lambda screen: next(bases))
     original_deploy = bot.deploy
 
@@ -86,6 +86,7 @@ def test_full_attack_loop(bot, monkeypatch):
 
     assert bot.attacks == 2
     troops = sum(s.count for s in bot.cfg.slots)
+    abilities = sum(1 for s in bot.cfg.slots if s.ability_after is not None)
     # per attack: deploy taps + slot selections + hero abilities
     deploy_taps = [t for t in bot.device.taps if t != (1, 1)]
-    assert len(deploy_taps) == 2 * (troops + len(bot.cfg.slots) + 2)
+    assert len(deploy_taps) == 2 * (troops + len(bot.cfg.slots) + abilities)

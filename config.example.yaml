@@ -1,5 +1,6 @@
-# Farmbot 2.0 – Beispielkonfiguration
-# Kopieren nach config.yaml und an dein Handy anpassen.
+# Farmbot 2.0 – Konfiguration
+# Kalibriert für 2772x1240 (OnePlus, OxygenOS 16), Rathaus 15, reine Kobold-Armee.
+# Kopieren nach config.yaml und device.serial eintragen.
 # Alle Positionen sind RELATIV zur Bildschirmgröße: x und y von 0.0 bis 1.0
 # (0,0 = oben links, 1,1 = unten rechts). Prüfen mit: python -m farmbot show-deploy
 
@@ -12,63 +13,61 @@ game:
 
 templates:
   dir: templates        # Ordner mit den Button-Bildern (relativ zu dieser Datei)
-  threshold: 0.85       # Mindest-Übereinstimmung 0..1; bei Fehlerkennungen erhöhen
+  threshold: 0.80       # Mindest-Übereinstimmung 0..1; bei Fehlerkennungen erhöhen
 
 search:
-  mode: any             # any = eine Ressource reicht | all = alle | sum = Gold+Elixier >= min_total
-  min_gold: 300000
-  min_elixir: 300000
+  mode: all             # any = eine Ressource reicht | all = alle | sum = Gold+Elixier >= min_total
+  min_gold: 500000
+  min_elixir: 500000
   min_dark: 0           # 0 = ignorieren
   min_total: 600000     # nur für mode: sum
-  max_skips: 60         # danach wird die aktuelle Basis trotzdem angegriffen
+  max_skips: 60         # danach wird die aktuelle Basis trotzdem angegriffen ("Weiter" kostet 1400 Gold)
   attack_on_unreadable: false
 
 # Bereiche, in denen beim Gegner die Beute-Zahlen stehen (oben links).
 # Mit "python -m farmbot show-deploy --image <screenshot einer gegnerischen Basis>" kontrollieren.
 loot_regions:
-  gold:   [0.035, 0.125, 0.135, 0.165]
-  elixir: [0.035, 0.175, 0.135, 0.215]
-  dark:   [0.035, 0.225, 0.120, 0.265]
+  gold:   [0.083, 0.137, 0.200, 0.177]
+  elixir: [0.083, 0.190, 0.200, 0.230]
+  dark:   [0.083, 0.243, 0.200, 0.283]
 
 # Eckpunkte der Spielfläche (Raute) im Angriffsbildschirm.
 map_diamond:
-  top:    [0.50, 0.08]
-  right:  [0.90, 0.47]
-  bottom: [0.50, 0.86]
-  left:   [0.10, 0.47]
+  top:    [0.500, 0.000]
+  right:  [0.915, 0.470]
+  bottom: [0.500, 0.950]
+  left:   [0.085, 0.470]
 
 army:
   # Seiten: top_left, top_right, bottom_right, bottom_left
-  deploy_sides: [top_left, top_right, bottom_right, bottom_left]
-  deploy_outward: 0.03  # Punkte etwas außerhalb der Raute, damit sie sicher im erlaubten Bereich liegen
-  tap_delay: 0.08       # Sekunden zwischen zwei Absetz-Taps
-  # Slots in der Truppenleiste unten, in der Reihenfolge des Absetzens.
+  # Unten liegen "Kampf beenden" und die Truppenleiste – dort nicht absetzen!
+  deploy_sides: [top_left, top_right]
+  deploy_outward: 0.10  # Punkte nach außen schieben, weg von den Gebäuden (rote Zone)
+  deploy_margin: 0.2    # Abstand zu den Ecken (0..0.5)
+  tap_delay: 0.05       # Sekunden zwischen zwei Absetz-Taps
+  # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
+  # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.
   slots:
-    - name: barbarian
-      pos: [0.13, 0.92]
-      count: 90
-    - name: archer
-      pos: [0.21, 0.92]
-      count: 90
-    - name: king
-      pos: [0.29, 0.92]
-      count: 1
-      sides: [bottom_left]
-      ability_after: 10   # Fähigkeit nach 10 s aktivieren
-    - name: queen
-      pos: [0.37, 0.92]
-      count: 1
-      sides: [bottom_right]
-      ability_after: 10
+    - name: kobold
+      template: slot_goblin
+      pos: [0.19, 0.91]
+      count: 320
+    # Beispiel Held (Fähigkeit nach 10 s):
+    # - name: queen
+    #   template: slot_queen
+    #   pos: [0.48, 0.91]
+    #   count: 1
+    #   sides: [top_left]
+    #   ability_after: 10
 
 battle:
   max_duration: 180     # normale Kampfdauer (3 min)
-  surrender_after: 90   # nach 90 s aufgeben (Template end_battle nötig); null = bis zum Ende
+  surrender_after: null # z. B. 90 = nach 90 s aufgeben (Templates end_battle + surrender_confirm nötig)
 
 training:
   # Templates, die nacheinander angetippt werden, um die Armee neu zu trainieren
   # (z. B. Armee-Button → "Erneut trainieren" → Fenster schließen). Leer = nicht trainieren.
-  sequence: [army_button, train_again, close_window]
+  sequence: []
   wait_after: 0         # Sekunden warten, bis die Armee fertig ist
 
 session:

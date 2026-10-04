@@ -10,8 +10,9 @@ EXAMPLE = Path(__file__).parent.parent / "config.example.yaml"
 
 def test_example_config_loads():
     cfg = load(EXAMPLE)
-    assert cfg.slots[0].name == "barbarian"
-    assert cfg.slots[2].ability_after == 10
+    assert cfg.slots[0].name == "kobold"
+    assert cfg.slots[0].template == "slot_goblin"
+    assert cfg.deploy_margin == 0.2
     assert set(cfg.loot_regions) == {"gold", "elixir", "dark"}
     assert Path(cfg.templates_dir) == EXAMPLE.parent / "templates"
 

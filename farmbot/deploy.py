@@ -55,7 +55,8 @@ def edge_points(diamond: Diamond, side: str, n: int, outward: float = 0.0,
     return points
 
 
-def spread(diamond: Diamond, sides: list[str], count: int, outward: float = 0.0) -> list[Point]:
+def spread(diamond: Diamond, sides: list[str], count: int, outward: float = 0.0,
+           margin: float = 0.1) -> list[Point]:
     """Distribute `count` deployments as evenly as possible over the given sides."""
     if not sides or count <= 0:
         return []
@@ -65,5 +66,5 @@ def spread(diamond: Diamond, sides: list[str], count: int, outward: float = 0.0)
     base, extra = divmod(count, len(sides))
     points: list[Point] = []
     for i, side in enumerate(sides):
-        points += edge_points(diamond, side, base + (1 if i < extra else 0), outward)
+        points += edge_points(diamond, side, base + (1 if i < extra else 0), outward, margin)
     return points

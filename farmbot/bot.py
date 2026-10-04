@@ -25,6 +25,7 @@ DEFAULT_TIMEOUTS = {
 
 
 MAX_FAILURES = 3
+TROOP_BAR = (0.0, 0.8, 1.0, 1.0)
 
 
 class BotError(RuntimeError):
@@ -139,9 +140,10 @@ class Bot:
         abilities = []
         for slot in self.cfg.slots:
             sides = slot.sides or self.cfg.deploy_sides
-            points = spread(self.cfg.diamond, sides, slot.count, self.cfg.deploy_outward)
+            points = spread(self.cfg.diamond, sides, slot.count, self.cfg.deploy_outward,
+                            self.cfg.deploy_margin)
             log.info("Setze %s ab (%d×)", slot.name, len(points))
-            self.tap_rel(*slot.pos)
+            self.select_slot(slot)
             time.sleep(0.2)
             for x, y in points:
                 self.tap_rel(x, y)
@@ -149,6 +151,20 @@ class Bot:
             if slot.ability_after is not None:
                 abilities.append((time.monotonic() + slot.ability_after, slot.name, slot.pos))
         return abilities
+
+    def select_slot(self, slot) -> None:
+        """Tap a troop slot, located by its template in the troop bar if one is configured."""
+        if slot.template:
+            if self.templates.has(slot.template):
+                match = self.templates.find(self.device.screenshot(), slot.template, region=TROOP_BAR)
+                if match:
+                    self.device.tap(*match.center)
+                    # remember the position for hero abilities
+                    slot.pos = (match.center[0] / self.device.size[0], match.center[1] / self.device.size[1])
+                    return
+            log.warning("Slot %s nicht in der Truppenleiste gefunden (Template %s), nutze pos",
+                        slot.name, slot.template)
+        self.tap_rel(*slot.pos)
 
     def surrender(self) -> None:
         log.info("Beende Kampf vorzeitig")

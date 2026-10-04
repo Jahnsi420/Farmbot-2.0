@@ -46,9 +46,11 @@ def test_numpy_ncc_matches_opencv():
 def test_preprocess_digits_keeps_bright_pixels():
     img = np.zeros((10, 20, 3), np.uint8)
     img[2:8, 5:10] = 255
+    img[2:8, 18:19] = 255  # speck far to the right, removed by trimming / filtering
     out = preprocess_digits(img)
-    assert out.shape == (30, 60)
-    assert out[15, 20] == 0 and out[0, 0] == 255
+    assert out.shape == (30 + 40, 60 + 40)
+    assert out[20 + 15, 20 + 20] == 0 and out[0, 0] == 255
+    assert (out[:, 20 + 50:] == 255).all()
 
 
 def test_png_roundtrip(tmp_path):
