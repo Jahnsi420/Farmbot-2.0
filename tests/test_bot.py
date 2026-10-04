@@ -26,6 +26,7 @@ class FakeDevice:
     def __init__(self):
         self.state = "home"
         self.taps = []
+        self.holds = []
         self.battle_frames = 0
 
     def ensure_connected(self):
@@ -52,6 +53,9 @@ class FakeDevice:
         for stream in streams:
             for x, y in stream:
                 self.tap(x, y)
+
+    def hold(self, x, y, ms):
+        self.holds.append((x, y, ms))
 
     def restart_app(self, package):
         self.state = "home"
@@ -201,25 +205,27 @@ def test_next_base_waits_for_different_loot_and_retaps(bot, monkeypatch):
     assert len(bot.device.taps) - taps_before >= 2
 
 
-def test_leftovers_are_tapped_one_by_one_until_card_is_empty(bot, monkeypatch):
+def test_leftovers_are_held_down_until_card_is_empty(bot, monkeypatch):
     slot = bot.cfg.slots[0]
     bot.templates.has = lambda name: True
-    taps_before = len(bot.device.taps)
-    checks = iter([False, False, False, True])  # card empties after the 3rd single tap
+    bot.cfg.leftover_hold = 0.8
+    checks = iter([False, False, False, True])  # card empties after the 3rd hold
     monkeypatch.setattr(bot, "slot_empty", lambda s: next(checks))
     bot.deploy_leftovers(slot)
-    new_taps = bot.device.taps[taps_before:]
-    assert len(new_taps) == 3
-    assert len(set(new_taps)) == 3  # different spots, a bad spot is not hit twice in a row
+    assert len(bot.device.holds) == 3
+    assert all(ms == 800 for _, _, ms in bot.device.holds)
+    assert len({(x, y) for x, y, _ in bot.device.holds}) == 3  # a bad spot is not hit twice in a row
 
 
-def test_leftovers_stop_after_limit(bot, monkeypatch):
+def test_leftovers_give_up_after_timeout(bot, monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(bot_module.time, "monotonic", lambda: clock[0])
     bot.templates.has = lambda name: True
-    bot.cfg.leftover_taps = 7
+    bot.cfg.leftover_timeout = 10
     monkeypatch.setattr(bot, "slot_empty", lambda s: False)
-    taps_before = len(bot.device.taps)
+    monkeypatch.setattr(bot.device, "hold", lambda x, y, ms: clock.__setitem__(0, clock[0] + 1.5))
     bot.deploy_leftovers(bot.cfg.slots[0])
-    assert len(bot.device.taps) - taps_before == 7
+    assert clock[0] == pytest.approx(10.5)
 
 
 def test_slot_empty_detects_greyed_out_card(bot, tmp_path, monkeypatch):

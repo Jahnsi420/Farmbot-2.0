@@ -107,6 +107,10 @@ class Device:
         script = " & ".join(jobs) + " & wait" if len(jobs) > 1 else jobs[0]
         self._run("shell", script, timeout=30 + 0.5 * max(len(s) for s in streams))
 
+    def hold(self, x: int, y: int, ms: int) -> None:
+        """Press and hold at one spot (a swipe that doesn't move)."""
+        self._run("shell", "input", "swipe", *(str(int(v)) for v in (x, y, x, y, ms)))
+
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> None:
         self._run("shell", "input", "swipe", *(str(int(v)) for v in (x1, y1, x2, y2, duration_ms)))
 

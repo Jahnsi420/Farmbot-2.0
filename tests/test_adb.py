@@ -24,3 +24,11 @@ def test_tap_streams_runs_streams_in_parallel_in_one_call(monkeypatch):
     monkeypatch.setattr(dev, "_run", lambda *args, **kw: calls.append(args))
     dev.tap_streams([[(1, 2), (1, 2)], [(3, 4)], []])
     assert calls == [("shell", "(input tap 1 2;input tap 1 2) & (input tap 3 4) & wait")]
+
+
+def test_hold_is_a_swipe_that_does_not_move(monkeypatch):
+    calls = []
+    dev = Device("x")
+    monkeypatch.setattr(dev, "_run", lambda *args, **kw: calls.append(args))
+    dev.hold(100, 200, 750)
+    assert calls == [("shell", "input", "swipe", "100", "200", "100", "200", "750")]

@@ -43,7 +43,8 @@ deploy_lines:
 army:
   deploy_sides: [top_left, top_right]   # Namen aus deploy_lines
   deploy_points: 4      # an so vielen Punkten gleichzeitig absetzen (0 = einzeln entlang der Linien)
-  leftover_taps: 80     # höchstens so viele Einzel-Taps zum Nachsetzen übrig gebliebener Truppen
+  leftover_hold: 1.0    # Übrige nachsetzen: so viele Sekunden pro Stelle gedrückt halten
+  leftover_timeout: 60  # spätestens nach so vielen Sekunden aufhören, falls die Karte nicht grau wird
   # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
   # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.
   slots:

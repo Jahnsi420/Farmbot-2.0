@@ -48,7 +48,8 @@ class Config:
     deploy_lines: dict[str, Line] = field(default_factory=dict)
     deploy_sides: list[str] = field(default_factory=list)
     deploy_points: int = 0  # >0: deploy at this many points, tapping all of them at the same time
-    leftover_taps: int = 80  # max. single taps to get rid of leftovers (until_empty)
+    leftover_hold: float = 1.0  # seconds to keep the finger down per leftover burst (until_empty)
+    leftover_timeout: float = 60  # give up on leftovers after this many seconds
 
     battle_max_duration: float = 180
     surrender_after: float | None = None
@@ -142,7 +143,8 @@ def parse(data: dict[str, Any]) -> Config:
     cfg.deploy_sides = _sides(army.get("deploy_sides", list(cfg.deploy_lines)), cfg.deploy_lines,
                               "army.deploy_sides")
     cfg.deploy_points = int(army.get("deploy_points", 0))
-    cfg.leftover_taps = int(army.get("leftover_taps", cfg.leftover_taps))
+    cfg.leftover_hold = float(army.get("leftover_hold", cfg.leftover_hold))
+    cfg.leftover_timeout = float(army.get("leftover_timeout", cfg.leftover_timeout))
     for i, slot in enumerate(army.get("slots") or []):
         where = f"army.slots[{i}]"
         cfg.slots.append(TroopSlot(

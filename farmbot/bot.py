@@ -211,24 +211,30 @@ class Bot:
         return card.size > 0 and imaging.saturation(card) < EMPTY_CARD_SATURATION
 
     def deploy_leftovers(self, slot) -> None:
-        """Deploy what is left on the card one by one, checking after every tap that it isn't empty yet.
+        """Deploy what is left on the card by holding the finger down, until the card is greyed out.
 
-        Taps can be lost (e.g. a point inside the red zone of a base built up to the edge). Once the
-        card is empty the game selects the next card (heroes!), so never tap without checking first.
+        Taps can be lost (e.g. points inside the red zone of a base built up to the edge). The game
+        keeps deploying while the finger is down, so short holds at changing spots are fast; after
+        every hold the card is checked. Once it is empty the game selects the next card (heroes).
         """
         if not slot.template or not self.templates.has(slot.template):
             return
         time.sleep(0.3)
         if self.slot_empty(slot):
             return
-        log.warning("%s: noch Truppen übrig, setze den Rest einzeln ab", slot.name)
+        log.warning("%s: noch Truppen übrig, setze den Rest nach", slot.name)
         spots = [self.rel_to_px(*p) for p in spread(self.cfg.deploy_lines, slot.sides or self.cfg.deploy_sides, 16)]
-        for i in range(self.cfg.leftover_taps):
-            self.device.tap(*spots[(i * 5) % len(spots)])  # jump around: one bad spot shouldn't repeat
+        started = time.monotonic()
+        holds = 0
+        while time.monotonic() - started < self.cfg.leftover_timeout:
+            # jump around the spots, so one inside a red zone isn't hit twice in a row
+            self.device.hold(*spots[(holds * 5) % len(spots)], int(self.cfg.leftover_hold * 1000))
+            holds += 1
             if self.slot_empty(slot):
-                log.info("%s: %d einzeln nachgesetzt", slot.name, i + 1)
+                log.info("%s: Rest nachgesetzt (%d× gedrückt, %.1fs)", slot.name, holds,
+                         time.monotonic() - started)
                 return
-        log.warning("%s: nach %d Einzel-Taps immer noch nicht leer", slot.name, self.cfg.leftover_taps)
+        log.warning("%s: Karte nach %.0fs immer noch nicht leer", slot.name, self.cfg.leftover_timeout)
 
     def deploy_streams(self, slot) -> list[list[tuple[int, int]]]:
         """Tap sequences for a slot: one per deploy point (run in parallel), or one along the lines."""
