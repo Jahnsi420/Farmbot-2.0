@@ -101,13 +101,6 @@ class Bot:
                 raise BotError(f"'{name}' nach {timeout:.0f}s nicht gefunden.")
             time.sleep(interval)
 
-    def wait_gone(self, name: str, timeout: float, interval: float = 0.25) -> None:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            if not self.templates.find(self.device.screenshot(), name):
-                return
-            time.sleep(interval)
-
     def tap_template(self, name: str, timeout: float | None = None) -> None:
         match, _ = self.wait_for(name, timeout if timeout is not None else self.timeouts["button"])
         self.device.tap(*match.center)
@@ -153,12 +146,32 @@ class Bot:
             values[res] = read_number(crop_rel(screen, region)[0]) if region else None
         return Loot(**values)
 
+    def next_base(self, previous: Loot) -> tuple[np.ndarray, Loot]:
+        """Tap "Weiter" and wait until a base with different loot is shown."""
+        self.tap_template("next_button")
+        tapped = time.monotonic()
+        deadline = tapped + self.timeouts["search"]
+        while time.monotonic() < deadline:
+            time.sleep(0.25)
+            screen = self.device.screenshot()
+            match = self.templates.find(screen, "next_button")
+            if not match:
+                continue  # clouds: the next base is loading
+            loot = self.read_loot(screen)
+            if loot != previous and (loot.gold is not None or loot.elixir is not None):
+                return screen, loot
+            if time.monotonic() - tapped > 5:  # tap got lost: still the same base
+                log.debug("Weiter erneut antippen")
+                self.device.tap(*match.center)
+                tapped = time.monotonic()
+        raise BotError(f"Nächste Basis nach {self.timeouts['search']:.0f}s nicht erschienen.")
+
     def find_target(self) -> bool:
         """Skip bases until one passes the loot filter. Returns False if max_skips is hit."""
+        time.sleep(0.5)  # let the first base and its loot numbers render
+        screen = self.device.screenshot()
+        loot = self.read_loot(screen)
         for skip in range(self.cfg.max_skips + 1):
-            time.sleep(0.5)  # let the base and loot numbers render
-            screen = self.device.screenshot()
-            loot = self.read_loot(screen)
             unreadable = loot.gold is None and loot.elixir is None
             log.info("Basis %d: %s", skip + 1, loot)
             if unreadable:
@@ -169,9 +182,7 @@ class Bot:
             if skip == self.cfg.max_skips:
                 break
             log.info("→ Weiter")
-            self.tap_template("next_button")
-            self.wait_gone("next_button", self.timeouts["button"])
-            self.wait_for("next_button", self.timeouts["search"])
+            screen, loot = self.next_base(loot)
         return False
 
     def deploy(self) -> list[tuple[float, str, tuple[float, float]]]:
@@ -260,7 +271,7 @@ class Bot:
                     if watch.update(now, self.read_loot(screen)) and now - last_log >= 5:
                         log.info("Restbeute: %s (%.0fs)", fmt(watch.lowest), elapsed)
                         last_log = now
-                    if watch.stalled(now):
+                    if elapsed >= self.cfg.surrender_min_time and watch.stalled(now):
                         reason = (f"in {self.cfg.surrender_when_idle:.0f}s weniger als "
                                   f"{fmt(self.cfg.surrender_min_loot)} Beute")
                 if self.cfg.surrender_after is not None and elapsed >= self.cfg.surrender_after:

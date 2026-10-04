@@ -52,6 +52,7 @@ class Config:
     surrender_after: float | None = None
     surrender_when_idle: float | None = None  # window in seconds for surrender_min_loot
     surrender_min_loot: int = 1  # give up once less loot than this was taken within the window
+    surrender_min_time: float = 0  # seconds after deploy start before stalled looting may end the battle
 
     train_sequence: list[str] = field(default_factory=list)
     wait_after_train: float = 0
@@ -160,6 +161,7 @@ def parse(data: dict[str, Any]) -> Config:
     if battle.get("surrender_when_idle") is not None:
         cfg.surrender_when_idle = float(battle["surrender_when_idle"])
     cfg.surrender_min_loot = int(battle.get("surrender_min_loot", cfg.surrender_min_loot))
+    cfg.surrender_min_time = float(battle.get("surrender_min_time", cfg.surrender_min_time))
 
     training = data.get("training") or {}
     cfg.train_sequence = list(training.get("sequence") or [])

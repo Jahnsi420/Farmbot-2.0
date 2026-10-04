@@ -107,6 +107,7 @@ def battle(bot, monkeypatch):
     bot.templates.has = lambda name: True
     bot.cfg.surrender_when_idle = 15
     bot.cfg.surrender_after = None
+    bot.cfg.surrender_min_time = 0
     bot.device.state = "battle"
     bot.device.battle_frames = -10_000  # the battle only ends by surrendering
     surrendered = []
@@ -172,3 +173,29 @@ def test_deploy_points_split_count_over_parallel_streams(bot):
     bot.cfg.deploy_points = 0
     (single,) = bot.deploy_streams(slot)
     assert len(single) == 301 and len(set(single)) > 4
+
+
+def test_no_stall_surrender_before_min_time(battle, monkeypatch):
+    bot, clock, surrendered = battle
+    bot.cfg.surrender_min_time = 45
+    # a few edge collectors are looted right away, then nothing until the goblins reach storages
+    readings = iter([Loot(950_000, 950_000, 0), Loot(945_000, 950_000, 0)] + [Loot(945_000, 950_000, 0)] * 200)
+    monkeypatch.setattr(bot, "read_loot", lambda screen: next(readings))
+    bot.wait_battle_end([])
+    assert surrendered == [pytest.approx(45.0)]
+
+
+def test_next_base_waits_for_different_loot_and_retaps(bot, monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(bot_module.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(bot_module.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + s))
+    old, new = Loot(100_000, 100_000, 0), Loot(800_000, 700_000, 0)
+    # first tap is lost: the same base stays for > 5s, then the retap loads the new one
+    readings = iter([old] * 30 + [new])
+    monkeypatch.setattr(bot, "read_loot", lambda screen: next(readings))
+    bot.device.state = "stuck"
+    bot.templates.find = lambda screen, name, **kw: Match(0, 0, 3, 3, 1.0)
+    taps_before = len(bot.device.taps)
+    screen, loot = bot.next_base(old)
+    assert loot == new
+    assert len(bot.device.taps) - taps_before >= 2
