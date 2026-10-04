@@ -61,8 +61,9 @@ army:
 battle:
   max_duration: 180     # normale Kampfdauer (3 min)
   # Aufgeben braucht die Templates end_battle und surrender_confirm.
-  surrender_when_idle: 15  # aufgeben, wenn die Beute 15 s lang nicht weiter sinkt (null = aus)
-  surrender_after: 120     # spätestens nach 120 s aufgeben (null = bis zum Ende)
+  surrender_when_idle: 15     # aufgeben, wenn in 15 s (null = aus) ...
+  surrender_min_loot: 20000   # ... weniger als 20.000 Gold+Elixier geplündert wurden
+  surrender_after: 120        # spätestens 120 s nach Beginn des Absetzens aufgeben (null = bis zum Ende)
 
 training:
   # Templates, die nacheinander angetippt werden, um die Armee neu zu trainieren

@@ -130,3 +130,25 @@ def test_no_idle_surrender_before_loot_starts_dropping(battle, monkeypatch):
     monkeypatch.setattr(bot, "read_loot", lambda screen: Loot(500_000, 500_000, 0))
     bot.wait_battle_end([])
     assert surrendered == [pytest.approx(60.0)]
+
+
+def test_surrenders_when_loot_only_trickles(battle, monkeypatch):
+    bot, clock, surrendered = battle
+    bot.cfg.surrender_min_loot = 20_000
+    # big storages first (100k per reading), then collectors trickle 1k per reading (~10k per 15s)
+    totals = [2_000_000] * 3 + [2_000_000 - 100_000 * i for i in range(1, 6)]
+    totals += [totals[-1] - 1_000 * i for i in range(1, 200)]
+    readings = iter(Loot(t // 2, t - t // 2, 0) for t in totals)
+    monkeypatch.setattr(bot, "read_loot", lambda screen: next(readings))
+    bot.wait_battle_end([])
+    # last big drop at t=10.5s: the 15s window behind it holds >= 20k until t=10.5+15
+    assert len(surrendered) == 1 and 24.0 <= surrendered[0] <= 27.0
+
+
+def test_surrender_after_counts_from_deploy_start(battle, monkeypatch):
+    bot, clock, surrendered = battle
+    bot.cfg.surrender_when_idle = None
+    bot.cfg.surrender_after = 120
+    clock[0] = 50.0  # deploying took 50s
+    bot.wait_battle_end([], start=0.0)
+    assert surrendered == [pytest.approx(120.5)]

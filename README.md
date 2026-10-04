@@ -114,7 +114,8 @@ in Folge bricht er ab.
    Nach `max_skips` Versuchen wird trotzdem angegriffen.
 5. Jeder Slot wird ausgewählt und seine `count` Truppen gleichmäßig auf den Linien aus `deploy_sides` abgesetzt.
    Helden-Fähigkeiten werden nach `ability_after` Sekunden aktiviert.
-6. Warten auf das Kampfende (oder Aufgeben nach `surrender_after`), dann „Nach Hause“.
+6. Warten auf das Kampfende, dann „Nach Hause“. Vorher wird aufgegeben, sobald in `surrender_when_idle`
+   Sekunden weniger als `surrender_min_loot` Beute dazukam, spätestens aber nach `surrender_after` Sekunden.
 
 ## Entwicklung
 

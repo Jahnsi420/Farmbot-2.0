@@ -33,6 +33,43 @@ class BotError(RuntimeError):
     pass
 
 
+def fmt(n: int | None) -> str:
+    return "?" if n is None else f"{n:,}".replace(",", ".")
+
+
+class LootWatch:
+    """Follows the remaining loot during a battle to tell when looting has stalled."""
+
+    def __init__(self, window: float, min_gain: int):
+        self.window = window
+        self.min_gain = min_gain
+        self.lowest: int | None = None
+        self.first_drop: float | None = None  # the window only counts once loot started dropping
+        self.history: list[tuple[float, int]] = []
+
+    def update(self, now: float, loot: Loot) -> bool:
+        """Record a reading; returns True if the remaining loot went down."""
+        if loot.gold is None or loot.elixir is None:
+            return False
+        total = loot.gold + loot.elixir
+        dropped = False
+        # higher readings are OCR noise: loot only goes down during a battle
+        if self.lowest is None or total < self.lowest:
+            if self.lowest is not None:
+                dropped = True
+                self.first_drop = self.first_drop if self.first_drop is not None else now
+            self.lowest = total
+        self.history.append((now, self.lowest))
+        return dropped
+
+    def stalled(self, now: float) -> bool:
+        """Less than min_gain loot taken during the last `window` seconds."""
+        if self.first_drop is None or now - self.first_drop < self.window:
+            return False
+        before = [v for t, v in self.history if t <= now - self.window]
+        return bool(before) and before[-1] - self.lowest < self.min_gain
+
+
 class Bot:
     def __init__(self, config: Config, device: Device, debug_dir: Path | None = None):
         self.cfg = config
@@ -184,11 +221,13 @@ class Bot:
         except BotError:
             log.warning("Bestätigung zum Aufgeben nicht gefunden")
 
-    def wait_battle_end(self, abilities: list[tuple[float, str, tuple[float, float]]]) -> None:
-        start = time.monotonic()
+    def wait_battle_end(self, abilities: list[tuple[float, str, tuple[float, float]]],
+                        start: float | None = None) -> None:
+        """Wait for the result screen; `start` is when deploying began (for surrender_after)."""
+        start = time.monotonic() if start is None else start
         surrendered = not self.can_surrender()
-        lowest_loot: int | None = None
-        last_drop: float | None = None  # idle timer only runs once loot started dropping
+        watch = LootWatch(self.cfg.surrender_when_idle or 0, self.cfg.surrender_min_loot)
+        last_log = float("-inf")
         while True:
             now = time.monotonic()
             for item in list(abilities):
@@ -209,21 +248,16 @@ class Bot:
             if not surrendered:
                 reason = None
                 if self.cfg.surrender_when_idle is not None:
-                    loot = self.read_loot(screen)
-                    if loot.gold is not None and loot.elixir is not None:
-                        total = loot.gold + loot.elixir
-                        # higher readings are OCR noise: loot only goes down during a battle
-                        if lowest_loot is None or total < lowest_loot:
-                            if lowest_loot is not None:
-                                last_drop = now
-                            lowest_loot = total
-                    if last_drop is not None and now - last_drop >= self.cfg.surrender_when_idle:
-                        reason = f"seit {self.cfg.surrender_when_idle:.0f}s keine Beute mehr"
+                    if watch.update(now, self.read_loot(screen)) and now - last_log >= 5:
+                        log.info("Restbeute: %s (%.0fs)", fmt(watch.lowest), elapsed)
+                        last_log = now
+                    if watch.stalled(now):
+                        reason = (f"in {self.cfg.surrender_when_idle:.0f}s weniger als "
+                                  f"{fmt(self.cfg.surrender_min_loot)} Beute")
                 if self.cfg.surrender_after is not None and elapsed >= self.cfg.surrender_after:
                     reason = f"nach {self.cfg.surrender_after:.0f}s"
                 if reason:
-                    log.info("Gebe auf (%s), Restbeute: %s", reason,
-                             "?" if lowest_loot is None else f"{lowest_loot:,}".replace(",", "."))
+                    log.info("Gebe auf (%s), Restbeute: %s", reason, fmt(watch.lowest))
                     self.surrender(screen)
                     surrendered = True
             if elapsed > self.cfg.battle_max_duration + 30:
@@ -239,8 +273,9 @@ class Bot:
         self.start_search()
         if not self.find_target():
             log.warning("Keine passende Basis nach %d Skips – greife trotzdem an.", self.cfg.max_skips)
+        started = time.monotonic()
         abilities = self.deploy()
-        self.wait_battle_end(abilities)
+        self.wait_battle_end(abilities, started)
         self.attacks += 1
         log.info("Angriff %d abgeschlossen", self.attacks)
 
