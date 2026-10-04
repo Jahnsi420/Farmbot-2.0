@@ -54,10 +54,17 @@ class FakeDevice:
             for x, y in stream:
                 self.tap(x, y)
 
+    foreground = "com.supercell.clashofclans"
+    restarts = 0
+
+    def foreground_package(self):
+        return self.foreground
+
     def hold(self, x, y, ms):
         self.holds.append((x, y, ms))
 
     def restart_app(self, package):
+        self.restarts += 1
         self.state = "home"
 
 
@@ -244,3 +251,38 @@ def test_slot_empty_detects_greyed_out_card(bot, tmp_path, monkeypatch):
     assert not bot.slot_empty(slot)
     monkeypatch.setattr(bot.device, "screenshot", lambda: grey)
     assert bot.slot_empty(slot)
+
+
+def test_wait_for_pauses_while_user_is_in_another_app(bot, monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(bot_module.time, "monotonic", lambda: clock[0])
+    bot.device.state = "elsewhere"  # nothing the bot knows is on screen
+    bot.device.foreground = "com.anthropic.claude"
+
+    def sleep(s):
+        clock[0] += s
+        if clock[0] > 40:  # user comes back to the game after 40s
+            bot.device.foreground = "com.supercell.clashofclans"
+            bot.device.state = "home"
+
+    monkeypatch.setattr(bot_module.time, "sleep", sleep)
+    match, _ = bot.wait_for("attack_button", timeout=10)
+    assert match is not None and clock[0] > 40
+
+
+def test_no_restart_when_user_switched_apps(bot, monkeypatch):
+    errors = iter([bot_module.BotError("Button nicht gefunden")])
+
+    def attack_once():
+        err = next(errors, None)
+        if err:
+            raise err
+        bot.attacks += 1
+
+    # away when the error happens, back at the next check
+    foreground = iter([False, True])
+    monkeypatch.setattr(bot, "attack_once", attack_once)
+    monkeypatch.setattr(bot, "game_in_foreground", lambda: next(foreground, True))
+    bot.cfg.max_attacks = 1
+    bot.run()
+    assert bot.device.restarts == 0 and bot.attacks == 1

@@ -98,9 +98,30 @@ class Bot:
             if match:
                 return match, screen
             if time.monotonic() >= deadline:
+                if self.wait_while_away():
+                    deadline = time.monotonic() + timeout
+                    continue
                 self.save_debug(screen, f"timeout_{name}")
                 raise BotError(f"'{name}' nach {timeout:.0f}s nicht gefunden.")
             time.sleep(interval)
+
+    def game_in_foreground(self) -> bool:
+        package = self.device.foreground_package()
+        return package is None or package == self.cfg.package  # unknown: assume the game
+
+    def wait_while_away(self) -> bool:
+        """If another app is in the foreground (the user switched apps), pause until the game is back.
+
+        Returns True if the bot had to wait.
+        """
+        if self.game_in_foreground():
+            return False
+        log.info("Clash of Clans ist nicht im Vordergrund – Bot pausiert, bis du zurückwechselst")
+        while not self.game_in_foreground():
+            time.sleep(2)
+        log.info("Clash of Clans ist zurück – weiter geht's")
+        time.sleep(2)  # let the game come back to life
+        return True
 
     def tap_template(self, name: str, timeout: float | None = None) -> None:
         match, _ = self.wait_for(name, timeout if timeout is not None else self.timeouts["button"])
@@ -227,6 +248,9 @@ class Bot:
         started = time.monotonic()
         holds = 0
         while time.monotonic() - started < self.cfg.leftover_timeout:
+            if holds % 3 == 0 and not self.game_in_foreground():
+                log.warning("%s: Nachsetzen abgebrochen, Clash of Clans ist nicht mehr im Vordergrund", slot.name)
+                return
             # jump around the spots, so one inside a red zone isn't hit twice in a row
             self.device.hold(*spots[(holds * 5) % len(spots)], int(self.cfg.leftover_hold * 1000))
             holds += 1
@@ -345,6 +369,8 @@ class Bot:
                 self.attack_once()
                 failures = 0
             except BotError as e:
+                if self.wait_while_away():
+                    continue  # the user switched apps: not the game's fault, no restart
                 failures += 1
                 log.error("%s (Fehler %d/%d)", e, failures, MAX_FAILURES)
                 if failures >= MAX_FAILURES:

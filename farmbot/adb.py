@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import struct
 import subprocess
 
@@ -18,6 +19,15 @@ class AdbError(RuntimeError):
 
 
 RGBA_8888 = 1
+
+
+def parse_foreground_package(dumpsys_window: str) -> str | None:
+    """Extract the focused app from `dumpsys window` output."""
+    for pattern in (r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", r"mFocusedApp=\S*\{[^}]*? ([\w.]+)/"):
+        m = re.search(pattern, dumpsys_window)
+        if m:
+            return m.group(1)
+    return None
 
 
 def parse_raw_screencap(data: bytes) -> np.ndarray | None:
@@ -106,6 +116,14 @@ class Device:
         jobs = ["(" + ";".join(f"input tap {int(x)} {int(y)}" for x, y in s) + ")" for s in streams]
         script = " & ".join(jobs) + " & wait" if len(jobs) > 1 else jobs[0]
         self._run("shell", script, timeout=30 + 0.5 * max(len(s) for s in streams))
+
+    def foreground_package(self) -> str | None:
+        """Package of the app in the foreground, or None if it can't be determined."""
+        try:
+            out = self._run("shell", "dumpsys", "window").decode(errors="replace")
+        except AdbError:
+            return None
+        return parse_foreground_package(out)
 
     def hold(self, x: int, y: int, ms: int) -> None:
         """Press and hold at one spot (a swipe that doesn't move)."""

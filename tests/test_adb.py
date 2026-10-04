@@ -32,3 +32,14 @@ def test_hold_is_a_swipe_that_does_not_move(monkeypatch):
     monkeypatch.setattr(dev, "_run", lambda *args, **kw: calls.append(args))
     dev.hold(100, 200, 750)
     assert calls == [("shell", "input", "swipe", "100", "200", "100", "200", "750")]
+
+
+def test_parse_foreground_package():
+    from farmbot.adb import parse_foreground_package
+
+    focus = "  mCurrentFocus=Window{4f1c2a u0 com.supercell.clashofclans/com.supercell.titan.GameApp}\n"
+    assert parse_foreground_package(focus) == "com.supercell.clashofclans"
+    no_focus = ("  mCurrentFocus=null\n"
+                "  mFocusedApp=ActivityRecord{9e8d7c u0 com.termux/.app.TermuxActivity t12}\n")
+    assert parse_foreground_package(no_focus) == "com.termux"
+    assert parse_foreground_package("nothing here") is None
