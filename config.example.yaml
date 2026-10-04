@@ -37,12 +37,13 @@ loot_regions:
 # außerhalb der Gebäude. Unten liegen "Kampf beenden" und die Truppenleiste – dort keine Linien!
 # Kontrolle: python -m farmbot show-deploy --image <screenshot einer gegnerischen Basis>
 deploy_lines:
-  top_left:  [[0.115, 0.410], [0.320, 0.135]]
-  top_right: [[0.680, 0.135], [0.885, 0.410]]
+  top_left:  [[0.123, 0.441], [0.328, 0.166]]
+  top_right: [[0.672, 0.166], [0.877, 0.441]]
 
 army:
   deploy_sides: [top_left, top_right]   # Namen aus deploy_lines
   deploy_points: 4      # an so vielen Punkten gleichzeitig absetzen (0 = einzeln entlang der Linien)
+  leftover_taps: 80     # höchstens so viele Einzel-Taps zum Nachsetzen übrig gebliebener Truppen
   # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
   # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.
   slots:
@@ -50,6 +51,7 @@ army:
       template: slot_goblin
       pos: [0.19, 0.91]
       count: 300            # genau die Anzahl aus der Truppenleiste ("x300")
+      until_empty: true     # übrig gebliebene Kobolde einzeln nachsetzen, bis die Karte grau ist
     # Beispiel Held (Fähigkeit nach 10 s):
     # - name: queen
     #   template: slot_queen

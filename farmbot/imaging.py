@@ -44,6 +44,13 @@ def to_gray(img: np.ndarray) -> np.ndarray:
     return np.asarray(Image.fromarray(img).convert("L"))
 
 
+def saturation(img: np.ndarray) -> float:
+    """Mean color saturation 0..1; greyed-out (empty) troop cards are close to 0."""
+    c = img.astype(np.float32)
+    hi, lo = c.max(axis=2), c.min(axis=2)
+    return float(np.mean((hi - lo) / np.maximum(hi, 1)))
+
+
 def scale(img: np.ndarray, factor: float) -> np.ndarray:
     pil = Image.fromarray(img)
     size = (round(pil.width * factor), round(pil.height * factor))

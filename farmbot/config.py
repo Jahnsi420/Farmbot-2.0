@@ -25,6 +25,7 @@ class TroopSlot:
     sides: list[str] | None = None  # deploy lines, overrides army.deploy_sides
     ability_after: float | None = None  # heroes: tap slot again after N seconds
     template: str | None = None  # find the slot in the troop bar by image instead of pos
+    until_empty: bool = False  # deploy leftovers one by one until the card is greyed out
 
 
 @dataclass
@@ -47,6 +48,7 @@ class Config:
     deploy_lines: dict[str, Line] = field(default_factory=dict)
     deploy_sides: list[str] = field(default_factory=list)
     deploy_points: int = 0  # >0: deploy at this many points, tapping all of them at the same time
+    leftover_taps: int = 80  # max. single taps to get rid of leftovers (until_empty)
 
     battle_max_duration: float = 180
     surrender_after: float | None = None
@@ -140,6 +142,7 @@ def parse(data: dict[str, Any]) -> Config:
     cfg.deploy_sides = _sides(army.get("deploy_sides", list(cfg.deploy_lines)), cfg.deploy_lines,
                               "army.deploy_sides")
     cfg.deploy_points = int(army.get("deploy_points", 0))
+    cfg.leftover_taps = int(army.get("leftover_taps", cfg.leftover_taps))
     for i, slot in enumerate(army.get("slots") or []):
         where = f"army.slots[{i}]"
         cfg.slots.append(TroopSlot(
@@ -149,6 +152,7 @@ def parse(data: dict[str, Any]) -> Config:
             sides=_sides(slot["sides"], cfg.deploy_lines, f"{where}.sides") if "sides" in slot else None,
             ability_after=float(slot["ability_after"]) if slot.get("ability_after") is not None else None,
             template=slot.get("template"),
+            until_empty=bool(slot.get("until_empty", False)),
         ))
     if not cfg.slots:
         raise ConfigError("army.slots ist leer – mindestens ein Truppen-Slot wird benötigt.")

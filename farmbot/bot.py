@@ -27,6 +27,7 @@ DEFAULT_TIMEOUTS = {
 
 MAX_FAILURES = 3
 TROOP_BAR = (0.0, 0.8, 1.0, 1.0)
+EMPTY_CARD_SATURATION = 0.2  # full cards measure ~0.5, greyed-out ones ~0
 
 
 class BotError(RuntimeError):
@@ -195,9 +196,39 @@ class Bot:
             log.info("Setze %s ab (%d× an %d Punkt%s)", slot.name, slot.count, len(streams),
                      "" if len(streams) == 1 else "en")
             self.device.tap_streams(streams)
+            if slot.until_empty:
+                self.deploy_leftovers(slot)
             if slot.ability_after is not None:
                 abilities.append((time.monotonic() + slot.ability_after, slot.name, slot.pos))
         return abilities
+
+    def slot_empty(self, slot) -> bool:
+        """True once the slot's card in the troop bar is greyed out."""
+        template = self.templates.for_screen(slot.template, self.device.size[0])
+        th, tw = template.shape[:2]
+        cx, cy = self.rel_to_px(*slot.pos)
+        card = self.device.screenshot()[max(cy - th // 2, 0):cy + th // 2, max(cx - tw // 2, 0):cx + tw // 2]
+        return card.size > 0 and imaging.saturation(card) < EMPTY_CARD_SATURATION
+
+    def deploy_leftovers(self, slot) -> None:
+        """Deploy what is left on the card one by one, checking after every tap that it isn't empty yet.
+
+        Taps can be lost (e.g. a point inside the red zone of a base built up to the edge). Once the
+        card is empty the game selects the next card (heroes!), so never tap without checking first.
+        """
+        if not slot.template or not self.templates.has(slot.template):
+            return
+        time.sleep(0.3)
+        if self.slot_empty(slot):
+            return
+        log.warning("%s: noch Truppen übrig, setze den Rest einzeln ab", slot.name)
+        spots = [self.rel_to_px(*p) for p in spread(self.cfg.deploy_lines, slot.sides or self.cfg.deploy_sides, 16)]
+        for i in range(self.cfg.leftover_taps):
+            self.device.tap(*spots[(i * 5) % len(spots)])  # jump around: one bad spot shouldn't repeat
+            if self.slot_empty(slot):
+                log.info("%s: %d einzeln nachgesetzt", slot.name, i + 1)
+                return
+        log.warning("%s: nach %d Einzel-Taps immer noch nicht leer", slot.name, self.cfg.leftover_taps)
 
     def deploy_streams(self, slot) -> list[list[tuple[int, int]]]:
         """Tap sequences for a slot: one per deploy point (run in parallel), or one along the lines."""

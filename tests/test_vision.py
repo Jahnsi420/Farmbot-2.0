@@ -62,3 +62,14 @@ def test_templates_rescale_for_other_resolution(tmp_path, backend):
     m = t.find(lower_res, "btn")
     assert m is not None and abs(m.x - 80) <= 2 and abs(m.y - 240) <= 2
     assert Templates(tmp_path, threshold=0.8).find(lower_res, "btn") is None
+
+
+def test_button_variants_are_matched(tmp_path):
+    rng = np.random.default_rng(3)
+    screen = rng.integers(0, 255, (300, 400, 3), dtype=np.uint8)
+    imaging.imwrite(tmp_path / "end_battle.png", rng.integers(0, 255, (30, 60, 3), dtype=np.uint8))
+    imaging.imwrite(tmp_path / "end_battle.kampf_beenden.png", screen[200:230, 50:110])
+    t = Templates(tmp_path, threshold=0.9, regions={})
+    assert t.variants("end_battle") == ["end_battle", "end_battle.kampf_beenden"]
+    m = t.find(screen, "end_battle")
+    assert m is not None and (m.x, m.y) == (50, 200)

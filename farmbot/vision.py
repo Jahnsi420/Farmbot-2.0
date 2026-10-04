@@ -81,16 +81,26 @@ class Templates:
             self._scaled[key] = imaging.scale(template, screen_width / self.reference_width)
         return self._scaled[key]
 
+    def variants(self, name: str) -> list[str]:
+        """A button can look different (e.g. "Aufgeben" / "Kampf beenden"): name.png plus name.*.png."""
+        extra = sorted(p.name[:-4] for p in self.directory.glob(f"{name}.*.png"))
+        return [name] + extra
+
     def find(self, screen: np.ndarray, name: str, region: Rect | None = None,
              threshold: float | None = None) -> Match | None:
-        template = self.for_screen(name, screen.shape[1])
+        """Best match of the template (or any of its variants)."""
         region = region or self.regions.get(name)
         area, ox, oy = crop_rel(screen, region) if region else (screen, 0, 0)
-        th, tw = template.shape[:2]
-        if area.shape[0] < th or area.shape[1] < tw:
+        best: Match | None = None
+        for variant in self.variants(name):
+            template = self.for_screen(variant, screen.shape[1])
+            th, tw = template.shape[:2]
+            if area.shape[0] < th or area.shape[1] < tw:
+                continue
+            score, loc = imaging.match_template(area, template)
+            log.debug("template %s score %.3f", variant, score)
+            if best is None or score > best.score:
+                best = Match(loc[0] + ox, loc[1] + oy, tw, th, float(score))
+        if best is None or best.score < (threshold if threshold is not None else self.threshold):
             return None
-        score, loc = imaging.match_template(area, template)
-        log.debug("template %s score %.3f", name, score)
-        if score < (threshold if threshold is not None else self.threshold):
-            return None
-        return Match(loc[0] + ox, loc[1] + oy, tw, th, float(score))
+        return best

@@ -199,3 +199,42 @@ def test_next_base_waits_for_different_loot_and_retaps(bot, monkeypatch):
     screen, loot = bot.next_base(old)
     assert loot == new
     assert len(bot.device.taps) - taps_before >= 2
+
+
+def test_leftovers_are_tapped_one_by_one_until_card_is_empty(bot, monkeypatch):
+    slot = bot.cfg.slots[0]
+    bot.templates.has = lambda name: True
+    taps_before = len(bot.device.taps)
+    checks = iter([False, False, False, True])  # card empties after the 3rd single tap
+    monkeypatch.setattr(bot, "slot_empty", lambda s: next(checks))
+    bot.deploy_leftovers(slot)
+    new_taps = bot.device.taps[taps_before:]
+    assert len(new_taps) == 3
+    assert len(set(new_taps)) == 3  # different spots, a bad spot is not hit twice in a row
+
+
+def test_leftovers_stop_after_limit(bot, monkeypatch):
+    bot.templates.has = lambda name: True
+    bot.cfg.leftover_taps = 7
+    monkeypatch.setattr(bot, "slot_empty", lambda s: False)
+    taps_before = len(bot.device.taps)
+    bot.deploy_leftovers(bot.cfg.slots[0])
+    assert len(bot.device.taps) - taps_before == 7
+
+
+def test_slot_empty_detects_greyed_out_card(bot, tmp_path, monkeypatch):
+    from farmbot import imaging
+    from farmbot.vision import Templates
+
+    imaging.imwrite(tmp_path / "slot_goblin.png", np.zeros((20, 20, 3), np.uint8))
+    bot.templates = Templates(tmp_path)
+    slot = bot.cfg.slots[0]
+    slot.pos = (0.5, 0.9)
+    full = np.zeros((500, 1000, 3), np.uint8)
+    full[440:460, 490:510] = (40, 200, 60)  # colorful card
+    grey = full.copy()
+    grey[440:460, 490:510] = (120, 120, 120)
+    monkeypatch.setattr(bot.device, "screenshot", lambda: full)
+    assert not bot.slot_empty(slot)
+    monkeypatch.setattr(bot.device, "screenshot", lambda: grey)
+    assert bot.slot_empty(slot)
