@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
 import cv2
@@ -28,6 +29,7 @@ def _device(args) -> Device:
 
 
 def _screen(args):
+    _wait(args)
     if getattr(args, "image", None):
         img = cv2.imread(args.image)
         if img is None:
@@ -36,12 +38,20 @@ def _screen(args):
     return _device(args).screenshot()
 
 
+def _wait(args) -> None:
+    """Give the user time to switch from the terminal (e.g. Termux) to the game."""
+    if getattr(args, "delay", 0) and not getattr(args, "image", None):
+        print(f"Screenshot in {args.delay:.0f}s – jetzt zu Clash of Clans wechseln …")
+        time.sleep(args.delay)
+
+
 def cmd_devices(args) -> None:
     devices = Device(adb_path="adb").list_devices()
     print("\n".join(devices) if devices else "Keine Geräte verbunden.")
 
 
 def cmd_screenshot(args) -> None:
+    _wait(args)
     img = _device(args).screenshot()
     cv2.imwrite(args.output, img)
     print(f"Gespeichert: {args.output} ({img.shape[1]}x{img.shape[0]})")
@@ -53,8 +63,18 @@ def cmd_capture(args) -> None:
         x1, y1, x2, y2 = (int(v) for v in args.box.split(","))
     else:
         print("Bereich mit der Maus markieren, dann ENTER/LEERTASTE drücken (C = abbrechen).")
-        x, y, w, h = cv2.selectROI("Template auswählen", img, showCrosshair=True)
-        cv2.destroyAllWindows()
+        try:
+            x, y, w, h = cv2.selectROI("Template auswählen", img, showCrosshair=True)
+            cv2.destroyAllWindows()
+        except cv2.error:
+            cv2.imwrite("screenshot.png", img)
+            raise SystemExit(
+                "Keine grafische Oberfläche (z. B. Termux) – Maus-Auswahl nicht möglich.\n"
+                f"Screenshot gespeichert: screenshot.png ({img.shape[1]}x{img.shape[0]}).\n"
+                "Bereich stattdessen in Pixeln angeben, z. B.:\n"
+                f"  python -m farmbot capture {args.name} --image screenshot.png --box 100,800,300,950\n"
+                "Tipp: Entwickleroptionen → 'Zeigerposition' zeigt beim Antippen X/Y oben am Bildschirm."
+            ) from None
         if w == 0 or h == 0:
             raise SystemExit("Abgebrochen.")
         x1, y1, x2, y2 = x, y, x + w, y + h
@@ -137,12 +157,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("screenshot", help="Screenshot vom Handy speichern")
     s.add_argument("output", nargs="?", default="screenshot.png")
+    s.add_argument("-d", "--delay", type=float, default=0, help="Sekunden warten vor dem Screenshot")
     s.set_defaults(func=cmd_screenshot)
 
     s = sub.add_parser("capture", help="Button-Template aufnehmen")
     s.add_argument("name", help="Name des Templates, z. B. attack_button")
     s.add_argument("--image", help="Vorhandenen Screenshot statt Live-Bild verwenden")
     s.add_argument("--box", help="Bereich in Pixeln x1,y1,x2,y2 (statt Maus-Auswahl)")
+    s.add_argument("-d", "--delay", type=float, default=0, help="Sekunden warten vor dem Screenshot")
     s.set_defaults(func=cmd_capture)
 
     for name, func, helptext in (
@@ -154,6 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument("--image", help="Vorhandenen Screenshot statt Live-Bild verwenden")
         s.add_argument("--debug-dir", default="debug")
         s.add_argument("-o", "--output", default="debug/calibration.png")
+        s.add_argument("-d", "--delay", type=float, default=0, help="Sekunden warten vor dem Screenshot")
         s.set_defaults(func=func)
 
     s = sub.add_parser("run", help="Bot starten")

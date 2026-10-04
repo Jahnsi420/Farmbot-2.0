@@ -23,6 +23,37 @@ pip install -r requirements.txt
 python -m farmbot devices      # sollte dein Handy anzeigen
 ```
 
+## Direkt auf dem Handy mit Termux
+
+Der Bot kann auch ohne PC laufen. Er steuert das Handy dann über **Wireless Debugging**
+(ab Android 11) per ADB über `localhost`.
+
+```bash
+pkg update
+pkg install git python android-tools tesseract opencv-python python-numpy python-pillow
+pip install pyyaml pytesseract          # NICHT requirements.txt – opencv kommt aus pkg
+git clone -b claude/clash-of-clans-attack-bot-yqdo1p https://github.com/Jahnsi420/Farmbot-2.0.git
+cd Farmbot-2.0                          # alle farmbot-Befehle in diesem Ordner ausführen
+```
+
+ADB mit dem eigenen Handy verbinden:
+
+1. Entwickleroptionen → **Wireless Debugging** einschalten → „Gerät mit Kopplungscode koppeln“.
+2. Bildschirm teilen oder Termux im Pop-up-Fenster öffnen, dann `adb pair localhost:<Kopplungs-Port> <Code>` eingeben.
+3. Danach `adb connect localhost:<Port>`. Der Port steht oben auf der Wireless-Debugging-Seite und ist nicht derselbe wie beim Koppeln.
+4. `python -m farmbot devices` muss jetzt `localhost:<Port>` zeigen.
+
+Besonderheiten:
+
+- **Wartezeit vor dem Screenshot:** Sonst fotografiert der Bot Termux statt des Spiels. Mit
+  `--delay 5` bleiben dir 5 Sekunden zum Wechseln ins Spiel, z. B. `python -m farmbot screenshot -d 5`.
+- **Keine Maus-Auswahl:** Templates werden mit Pixel-Koordinaten ausgeschnitten:
+  `python -m farmbot capture attack_button -d 5 --box x1,y1,x2,y2`.
+  Die Koordinaten findest du über Entwickleroptionen → **Zeigerposition**. Beim Antippen stehen dann X/Y oben am Bildschirm.
+- **Hintergrund-Betrieb:** Vor `run` den Befehl `termux-wake-lock` ausführen und in den Android-Einstellungen
+  die Akku-Optimierung für Termux abschalten. Sonst beendet Android den Bot, sobald das Spiel im Vordergrund ist.
+- Der Wireless-Debugging-Port ändert sich nach jedem Neustart oder WLAN-Wechsel. Dann `adb connect` erneut ausführen.
+
 ## Einrichtung (einmalig)
 
 **1. Konfiguration anlegen**
