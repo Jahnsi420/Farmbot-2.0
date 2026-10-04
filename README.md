@@ -56,6 +56,25 @@ Besonderheiten:
   die Akku-Optimierung für Termux abschalten. Sonst beendet Android den Bot, sobald das Spiel im Vordergrund ist.
 - Der Wireless-Debugging-Port ändert sich nach jedem Neustart oder WLAN-Wechsel. Dann `adb connect` erneut ausführen.
 
+### Verknüpfung auf dem Homescreen
+
+Mit der App **Termux:Widget** startest du den Bot mit einem Tipp vom Homescreen. Installiere sie aus
+derselben Quelle wie Termux (F-Droid oder GitHub), sonst funktioniert sie nicht. Dann:
+
+```bash
+bash ~/farmbot/Farmbot-2.0/termux/install-shortcuts.sh
+```
+
+Lege anschließend auf dem Homescreen das Widget **Termux:Widget** an (lange auf den Homescreen tippen →
+Widgets). Es zeigt zwei Einträge:
+
+- **Farmbot starten** verbindet ADB automatisch (findet auch den neuen Port nach einem Neustart),
+  öffnet Clash of Clans und startet 20 Angriffe. Das Termux-Fenster mit dem Log bleibt offen.
+- **Farmbot stoppen** beendet den Bot im Hintergrund.
+
+Voraussetzung: „Debugging über WLAN“ ist eingeschaltet und das Handy war einmal gekoppelt.
+Falls sich nichts öffnet: In den Android-Einstellungen bei Termux „Über anderen Apps einblenden“ erlauben.
+
 ## Einrichtung (einmalig)
 
 **1. Konfiguration anlegen**
