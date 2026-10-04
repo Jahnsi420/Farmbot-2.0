@@ -47,6 +47,12 @@ class FakeDevice:
         if (x, y) == (1, 1) and self.state in FLOW:
             self.state = FLOW[self.state][1]
 
+    def tap_streams(self, streams):
+        self.streams = streams
+        for stream in streams:
+            for x, y in stream:
+                self.tap(x, y)
+
     def restart_app(self, package):
         self.state = "home"
 
@@ -152,3 +158,17 @@ def test_surrender_after_counts_from_deploy_start(battle, monkeypatch):
     clock[0] = 50.0  # deploying took 50s
     bot.wait_battle_end([], start=0.0)
     assert surrendered == [pytest.approx(120.5)]
+
+
+def test_deploy_points_split_count_over_parallel_streams(bot):
+    bot.cfg.deploy_points = 4
+    slot = bot.cfg.slots[0]
+    slot.count = 301
+    streams = bot.deploy_streams(slot)
+    assert [len(s) for s in streams] == [76, 75, 75, 75]
+    assert all(len(set(s)) == 1 for s in streams)  # each stream taps one point
+    assert len({s[0] for s in streams}) == 4
+
+    bot.cfg.deploy_points = 0
+    (single,) = bot.deploy_streams(slot)
+    assert len(single) == 301 and len(set(single)) > 4

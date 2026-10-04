@@ -42,7 +42,7 @@ deploy_lines:
 
 army:
   deploy_sides: [top_left, top_right]   # Namen aus deploy_lines
-  tap_delay: 0.05       # Sekunden zwischen zwei Absetz-Taps
+  deploy_points: 4      # an so vielen Punkten gleichzeitig absetzen (0 = einzeln entlang der Linien)
   # Slots in der Truppenleiste, in der Reihenfolge des Absetzens.
   # Mit "template" sucht der Bot den Slot per Bild; "pos" ist nur der Notnagel.
   slots:
@@ -73,7 +73,7 @@ training:
 
 session:
   max_attacks: 10       # 0 = unbegrenzt
-  pause_between_attacks: 5
+  pause_between_attacks: 2
 
 timeouts:
   home: 30

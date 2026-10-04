@@ -112,7 +112,8 @@ in Folge bricht er ab.
 3. Angriff → Gegner suchen.
 4. Beute lesen. Erfüllt sie `search` nicht, wird „Weiter“ getippt (das kostet Gold!).
    Nach `max_skips` Versuchen wird trotzdem angegriffen.
-5. Jeder Slot wird ausgewählt und seine `count` Truppen gleichmäßig auf den Linien aus `deploy_sides` abgesetzt.
+5. Jeder Slot wird ausgewählt und seine `count` Truppen auf den Linien aus `deploy_sides` abgesetzt:
+   mit `deploy_points: 4` an 4 Punkten gleichzeitig (parallele Taps), mit `0` einzeln entlang der Linien.
    Helden-Fähigkeiten werden nach `ability_after` Sekunden aktiviert.
 6. Warten auf das Kampfende, dann „Nach Hause“. Vorher wird aufgegeben, sobald in `surrender_when_idle`
    Sekunden weniger als `surrender_min_loot` Beute dazukam, spätestens aber nach `surrender_after` Sekunden.

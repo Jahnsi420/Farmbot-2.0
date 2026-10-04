@@ -74,7 +74,8 @@ class Bot:
     def __init__(self, config: Config, device: Device, debug_dir: Path | None = None):
         self.cfg = config
         self.device = device
-        self.templates = Templates(config.templates_dir, config.threshold, config.reference_width)
+        self.templates = Templates(config.templates_dir, config.threshold, config.reference_width,
+                                   config.regions)
         self.timeouts = {**DEFAULT_TIMEOUTS, **config.timeouts}
         self.debug_dir = debug_dir
         self.attacks = 0
@@ -88,7 +89,7 @@ class Bot:
     def tap_rel(self, x: float, y: float) -> None:
         self.device.tap(*self.rel_to_px(x, y))
 
-    def wait_for(self, name: str, timeout: float, interval: float = 0.7):
+    def wait_for(self, name: str, timeout: float, interval: float = 0.25):
         deadline = time.monotonic() + timeout
         while True:
             screen = self.device.screenshot()
@@ -100,7 +101,7 @@ class Bot:
                 raise BotError(f"'{name}' nach {timeout:.0f}s nicht gefunden.")
             time.sleep(interval)
 
-    def wait_gone(self, name: str, timeout: float, interval: float = 0.4) -> None:
+    def wait_gone(self, name: str, timeout: float, interval: float = 0.25) -> None:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if not self.templates.find(self.device.screenshot(), name):
@@ -155,7 +156,7 @@ class Bot:
     def find_target(self) -> bool:
         """Skip bases until one passes the loot filter. Returns False if max_skips is hit."""
         for skip in range(self.cfg.max_skips + 1):
-            time.sleep(1.0)  # let the base and loot numbers render
+            time.sleep(0.5)  # let the base and loot numbers render
             screen = self.device.screenshot()
             loot = self.read_loot(screen)
             unreadable = loot.gold is None and loot.elixir is None
@@ -177,17 +178,25 @@ class Bot:
         """Deploy all slots. Returns pending hero abilities as (due_time, name, slot_pos)."""
         abilities = []
         for slot in self.cfg.slots:
-            sides = slot.sides or self.cfg.deploy_sides
-            points = spread(self.cfg.deploy_lines, sides, slot.count)
-            log.info("Setze %s ab (%d×)", slot.name, len(points))
             self.select_slot(slot)
-            time.sleep(0.2)
-            for x, y in points:
-                self.tap_rel(x, y)
-                time.sleep(self.cfg.tap_delay)
+            time.sleep(0.1)
+            streams = self.deploy_streams(slot)
+            log.info("Setze %s ab (%d× an %d Punkt%s)", slot.name, slot.count, len(streams),
+                     "" if len(streams) == 1 else "en")
+            self.device.tap_streams(streams)
             if slot.ability_after is not None:
                 abilities.append((time.monotonic() + slot.ability_after, slot.name, slot.pos))
         return abilities
+
+    def deploy_streams(self, slot) -> list[list[tuple[int, int]]]:
+        """Tap sequences for a slot: one per deploy point (run in parallel), or one along the lines."""
+        sides = slot.sides or self.cfg.deploy_sides
+        n_points = min(self.cfg.deploy_points, slot.count)
+        if n_points <= 0:
+            return [[self.rel_to_px(*p) for p in spread(self.cfg.deploy_lines, sides, slot.count)]]
+        points = spread(self.cfg.deploy_lines, sides, n_points)
+        base, extra = divmod(slot.count, n_points)
+        return [[self.rel_to_px(*p)] * (base + (1 if i < extra else 0)) for i, p in enumerate(points)]
 
     def select_slot(self, slot) -> None:
         """Tap a troop slot, located by its template in the troop bar if one is configured."""

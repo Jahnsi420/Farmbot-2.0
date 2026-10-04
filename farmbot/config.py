@@ -10,7 +10,7 @@ import yaml
 
 from farmbot.deploy import Line
 from farmbot.loot import LootFilter
-from farmbot.vision import Rect
+from farmbot.vision import DEFAULT_REGIONS, Rect
 
 
 class ConfigError(ValueError):
@@ -36,6 +36,7 @@ class Config:
     templates_dir: str = "templates"
     threshold: float = 0.85
     reference_width: int | None = None
+    regions: dict[str, Rect] = field(default_factory=lambda: dict(DEFAULT_REGIONS))
 
     loot_filter: LootFilter = field(default_factory=LootFilter)
     loot_regions: dict[str, Rect] = field(default_factory=dict)
@@ -45,7 +46,7 @@ class Config:
     slots: list[TroopSlot] = field(default_factory=list)
     deploy_lines: dict[str, Line] = field(default_factory=dict)
     deploy_sides: list[str] = field(default_factory=list)
-    tap_delay: float = 0.08
+    deploy_points: int = 0  # >0: deploy at this many points, tapping all of them at the same time
 
     battle_max_duration: float = 180
     surrender_after: float | None = None
@@ -56,7 +57,7 @@ class Config:
     wait_after_train: float = 0
 
     max_attacks: int = 0  # 0 = unlimited
-    pause_between_attacks: float = 5
+    pause_between_attacks: float = 2
 
     timeouts: dict[str, float] = field(default_factory=dict)
 
@@ -102,6 +103,11 @@ def parse(data: dict[str, Any]) -> Config:
     cfg.threshold = float(templates.get("threshold", cfg.threshold))
     if templates.get("reference_width"):
         cfg.reference_width = int(templates["reference_width"])
+    for name, rect in (templates.get("regions") or {}).items():
+        if rect is None:  # null = search the whole screen
+            cfg.regions.pop(name, None)
+        else:
+            cfg.regions[name] = _rel_rect(rect, f"templates.regions.{name}")
 
     search = data.get("search") or {}
     try:
@@ -132,7 +138,7 @@ def parse(data: dict[str, Any]) -> Config:
     army = data.get("army") or {}
     cfg.deploy_sides = _sides(army.get("deploy_sides", list(cfg.deploy_lines)), cfg.deploy_lines,
                               "army.deploy_sides")
-    cfg.tap_delay = float(army.get("tap_delay", cfg.tap_delay))
+    cfg.deploy_points = int(army.get("deploy_points", 0))
     for i, slot in enumerate(army.get("slots") or []):
         where = f"army.slots[{i}]"
         cfg.slots.append(TroopSlot(

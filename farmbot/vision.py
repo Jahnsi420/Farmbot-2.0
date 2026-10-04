@@ -14,6 +14,17 @@ log = logging.getLogger(__name__)
 
 Rect = tuple[float, float, float, float]  # relative x1, y1, x2, y2 (0..1)
 
+# Where each button can appear, with generous margins. Searching only there is much faster.
+DEFAULT_REGIONS: dict[str, Rect] = {
+    "attack_button": (0.0, 0.6, 0.3, 1.0),
+    "find_match": (0.0, 0.5, 0.4, 0.95),
+    "attack_confirm": (0.55, 0.7, 1.0, 1.0),
+    "next_button": (0.65, 0.5, 1.0, 0.9),
+    "end_battle": (0.0, 0.6, 0.3, 0.9),
+    "surrender_confirm": (0.35, 0.4, 0.85, 0.85),
+    "return_home": (0.25, 0.65, 0.75, 1.0),
+}
+
 
 @dataclass
 class Match:
@@ -38,11 +49,12 @@ def crop_rel(img: np.ndarray, rect: Rect) -> tuple[np.ndarray, int, int]:
 
 class Templates:
     def __init__(self, directory: str | Path, threshold: float = 0.85,
-                 reference_width: int | None = None):
+                 reference_width: int | None = None, regions: dict[str, Rect] | None = None):
         self.directory = Path(directory)
         self.threshold = threshold
         # Screen width the templates were cut from; other resolutions get rescaled templates.
         self.reference_width = reference_width
+        self.regions = DEFAULT_REGIONS if regions is None else regions
         self._cache: dict[str, np.ndarray] = {}
         self._scaled: dict[tuple[str, int], np.ndarray] = {}
 
@@ -72,6 +84,7 @@ class Templates:
     def find(self, screen: np.ndarray, name: str, region: Rect | None = None,
              threshold: float | None = None) -> Match | None:
         template = self.for_screen(name, screen.shape[1])
+        region = region or self.regions.get(name)
         area, ox, oy = crop_rel(screen, region) if region else (screen, 0, 0)
         th, tw = template.shape[:2]
         if area.shape[0] < th or area.shape[1] < tw:
