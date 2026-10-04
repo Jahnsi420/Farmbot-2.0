@@ -14,7 +14,11 @@ from PIL import Image
 
 try:
     import cv2
-except ImportError:  # pragma: no cover - depends on the environment
+
+    # Leftovers of a failed install can leave an empty `cv2` namespace package.
+    if not hasattr(cv2, "matchTemplate"):
+        cv2 = None
+except Exception:  # pragma: no cover - depends on the environment
     cv2 = None
 
 
